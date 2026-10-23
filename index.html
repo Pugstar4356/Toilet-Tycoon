@@ -196,6 +196,7 @@ html.nonews #newscard{display:none}
 </head>
 <body>
 <main>
+<div id="viewbar" hidden style="position:sticky;top:0;z-index:75;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#7b3fe4;color:#fff;font-weight:700;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>👁 Viewing <b id="vb-name"></b> &middot; read-only copy, nothing you do here is saved</span><button class="tab" id="vb-exit" style="background:#fff;color:#4a1fa8">Exit view</button></div>
 <header>
 <div><h1>🚽 Toilet <span>Tycoon</span></h1><p class="tag">One tiny loo. One enormous bathroom empire.</p></div>
 <div class="hdr-r"><button class="big" id="tips">💸 Collect tips</button><div class="acct" id="acct" hidden><span id="acct-name"></span><button class="tab" id="logout">Log out</button></div></div>
@@ -382,7 +383,7 @@ window.TT_MEMSTORE=true;
 })();
 </script>
 <script>
-var KEY='',LEGACY='toilet-tycoon-v2',ACC=null;
+var KEY='',LEGACY='toilet-tycoon-v2',ACC=null,VIEW=null;
 var SET=(function(){var d={theme:'system',nf:'compact',rm:false,pop:true,news:true,auto:false,snd:true,ui:true,amb:true,vol:50,v_sfx:100,v_ui:100,v_amb:100,v_pet:100,v_mus:50,mus:false},q,k;try{q=JSON.parse(localStorage.getItem('tt_settings')||'{}')}catch(e){q={}}for(k in q)d[k]=q[k];return d})();
 function saveSet(){try{localStorage.setItem('tt_settings',JSON.stringify(SET))}catch(e){}}
 function newS(){return {cash:0,served:0,toilets:1,fee:5,golden:0,tier:0,unlocked:0,rooms:{},fl:0,rserved:0,ml:0,cl:0,p:{pts:0,tot:0,runs:0,up:{}},exp:0,clean:100,tips:0,ms:0,pets:{inv:[],inc:[],eq:[],n:0,xs:0,xe:0},news:['Welcome, boss! Your first toilet is ready for business.']}}
@@ -1248,11 +1249,12 @@ function rndHex(){var a=new Uint8Array(16),i,r='';try{crypto.getRandomValues(a)}
 function getAccts(){try{return JSON.parse(localStorage.getItem('tt_accts')||'{}')||{}}catch(e){return{}}}
 function setAccts(A){try{localStorage.setItem('tt_accts',JSON.stringify(A))}catch(e){}}
 function saveNow(){
-if(!ACC)return;
+if(!ACC||VIEW)return;
 try{
 localStorage.setItem(KEY,JSON.stringify(S));LASTSAVE=Date.now();
 var A=getAccts();
 if(A[ACC]){var P=PT();A[ACC].st={asc:S.p.asc||0,all:S.p.all||0,srv:Math.max(S.p.srv||0,S.served||0),pets:P.inv.length,cash:S.cash,t:Date.now()};setAccts(A)}
+svPush();
 }catch(e){}
 }
 window.addEventListener('beforeunload',function(){saveNow()});
@@ -1271,9 +1273,10 @@ try{localStorage.setItem('tt_session',k)}catch(e){}
 $('acct-name').textContent='👤 '+A[k].name;$('acct').hidden=false;
 $('au-user').value='';$('au-pw').value='';$('au-pw2').value='';$('au-err').textContent='';
 $('auth').classList.remove('on');
-if(!quiet)snd('login');resetRuntime();showPage(0,1);setTimeout(function(){lbPush(1)},800);setTimeout(edPoll,2500);
+if(!quiet)snd('login');resetRuntime();showPage(0,1);setTimeout(function(){lbPush(1)},800);setTimeout(function(){svPush(1)},1600);setTimeout(edPoll,2500);
 }
 function logout(){
+if(VIEW)viewEnd();
 snd('logout');saveNow();
 try{localStorage.removeItem('tt_session')}catch(e){}
 ACC=null;KEY='';admSync();closeOdds();
@@ -1342,7 +1345,7 @@ return upCmd(['HSET',UP.hash,me,JSON.stringify({id:lid,n:a.name,asc:st.asc||0,al
 }).catch(function(){LBON.err='Could not reach the online leaderboard.'})}
 function lbRemove(k,lid){
 upCmd(['HGET',UP.hash,k]).then(function(v){var cur=null;try{cur=v?JSON.parse(v):null}catch(e){}
-if(cur&&(!lid||!cur.id||cur.id===lid))return upCmd(['HDEL',UP.hash,k])}).catch(function(){})}
+if(cur&&(!lid||!cur.id||cur.id===lid))return upCmd(['HDEL',UP.hash,k]).then(function(){return upCmd(['HDEL','tt:saves',k])})}).catch(function(){})}
 function lbPull(force){
 if(LBON.busy||(!force&&Date.now()-LBON.last<8000))return;
 LBON.busy=true;
@@ -1356,6 +1359,48 @@ rows.push({k:String(r[i]),n:String(v.n||r[i]).replace(/[^A-Za-z0-9_]/g,'').slice
 LBON.rows=rows;LBON.err='';LBON.last=Date.now();LBON.upd=Date.now()
 }).catch(function(){LBON.err='Could not reach the online leaderboard.';LBON.last=Date.now()})
 .then(function(){LBON.busy=false;if(!$('pg-lb').hidden)lbRender()})}
+// ---- player saves (so the overlord can open any account) ----
+var SVK='tt:saves',SVAT=0,SVSIG='';
+function svPush(force){
+if(!ACC||ACC===ADMIN_KEY||VIEW||LBON.conflict)return;
+var now=Date.now();if(!force&&now-SVAT<120000)return;
+var A=getAccts(),a=A[ACC];if(!a||!a.lid)return;
+var str=JSON.stringify(S),sig=str.length+'|'+Math.floor(S.cash||0);
+if(!force&&sig===SVSIG&&now-SVAT<600000)return;
+SVAT=now;SVSIG=sig;
+upCmd(['HSET',SVK,ACC,JSON.stringify({id:a.lid,n:a.name,t:now,s:str})]).catch(function(){SVAT=0});
+}
+function agoTxt(t){var m=Math.round((Date.now()-t)/60000);return m<1?'just now':m<60?m+' min ago':Math.round(m/60)+' h ago'}
+function viewLoad(k){
+if(!ADM_OK||VIEW&&k===VIEW.k)return;
+var A=getAccts(),loc=null;try{loc=localStorage.getItem('tt_save_'+k)}catch(e){}
+var row=(LBON.rows||[]).filter(function(r){return r.k===k})[0],nm=row?row.n:(A[k]?A[k].name:k);
+if(A[k]&&loc){viewStart(k,A[k].name,loc,(A[k].st||{}).t);return}
+upCmd(['HGET',SVK,k]).then(function(v){
+var o=null;try{o=v?JSON.parse(v):null}catch(e){}
+if(!o||!o.s){alert(nm+' has no online save yet. They need to play for a couple of minutes on this version of the game first.');return}
+viewStart(k,nm,o.s,o.t);
+}).catch(function(){alert('Could not reach the online saves. Try again in a moment.')});
+}
+function viewStart(k,name,str,t){
+var q;try{q=JSON.parse(str)}catch(e){alert('That save is damaged.');return}
+if(!VIEW)saveNow();
+var n=newS();for(var key in q)n[key]=q[key];
+var own=VIEW?VIEW.own:{S:S,KEY:KEY};
+VIEW={k:k,name:name,own:own};
+S=n;KEY='';
+$('vb-name').textContent=name+(t?' (saved '+agoTxt(t)+')':'');$('viewbar').hidden=false;
+$('acct-name').textContent='👁 '+name;
+resetRuntime();showPage(0,1);snd('ok');
+}
+function viewEnd(){
+if(!VIEW)return;
+var own=VIEW.own;VIEW=null;
+S=own.S;KEY=own.KEY;$('viewbar').hidden=true;
+var a=getAccts()[ACC];$('acct-name').textContent='👤 '+(a?a.name:'');
+resetRuntime();var nl=$('nav-lb');showPage(0,1);if(nl)nl.click();
+}
+$('vb-exit').onclick=viewEnd;
 // leaderboard
 // ---- shared update schedule (interval is set by the admin and stored online) ----
 function lbIntTxt(){var s=LBON.int;return s<120?s+' seconds':s%60===0?(s/60)+' minute'+(s===60?'':'s'):(s/60).toFixed(1)+' minutes'}
@@ -1400,7 +1445,7 @@ rk.forEach(function(r,i){pl[r.k]=i>0&&cmpRank(rk[i-1],r)===0?pl[rk[i-1].k]:i+1})
 rows.sort(function(x,y){return(LBSORT==='rank'?0:(y[LBSORT]||0)-(x[LBSORT]||0))||cmpRank(x,y)});
 var h='<tr><th data-sort="rank" class="'+(LBSORT==='rank'?'sorted':'')+'" title="Overall place">Place'+(LBSORT==='rank'?' ▼':'')+'</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+(ADM_OK?'<th>🛡️</th>':'')+'</tr>';
 rows.forEach(function(r,i){
-h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(r.hid?'—':(['🥇','🥈','🥉'][pl[r.k]-1]||pl[r.k]))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Entry</button> <button class="tab" data-lbp="'+encodeURIComponent(r.k)+'">🎮 Player</button></td>':'')+'</tr>'});
+h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(r.hid?'—':(['🥇','🥈','🥉'][pl[r.k]-1]||pl[r.k]))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Entry</button> <button class="tab" data-lbv="'+encodeURIComponent(r.k)+'">👁 View</button> <button class="tab" data-lbp="'+encodeURIComponent(r.k)+'">🎮 Player</button></td>':'')+'</tr>'});
 $('lb-table').innerHTML=h;
 $('lb-count').textContent=rows.length+' player'+(rows.length===1?'':'s');
 var note='🌐 Online leaderboard: ranks players from every device and refreshes every '+lbIntTxt()+'. Place is decided by: 1) Ascensions, 2) Prestiges, 3) Customers served, 4) Cash. Players who tie on all four share a place. Click a column to re-sort the table (places stay the same).';
@@ -1408,7 +1453,7 @@ if(!LBON.rows)note='Connecting to the online leaderboard… showing this device 
 if(LBON.err)note='⚠️ '+LBON.err+(LBON.rows?' Showing the last list we got.':' Showing this device only.');
 if(LBON.conflict)note+=' Another player already uses your username online, so your scores are not being posted. Make a new account with a different name.';
 $('lb-note').textContent=note}
-$('lb-table').addEventListener('click',function(e){var eb=e.target.closest('button[data-lbe]');if(eb){openLbEdit(decodeURIComponent(eb.dataset.lbe));return}var pb=e.target.closest('button[data-lbp]');if(pb){openPlEdit(decodeURIComponent(pb.dataset.lbp));return}var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
+$('lb-table').addEventListener('click',function(e){var eb=e.target.closest('button[data-lbe]');if(eb){openLbEdit(decodeURIComponent(eb.dataset.lbe));return}var vb=e.target.closest('button[data-lbv]');if(vb){viewLoad(decodeURIComponent(vb.dataset.lbv));return}var pb=e.target.closest('button[data-lbp]');if(pb){openPlEdit(decodeURIComponent(pb.dataset.lbp));return}var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
 var EDK='tt:edits';
 function openPlEdit(k){
 if(!ADM_OK)return;
