@@ -1487,17 +1487,27 @@ var give='<div class="alab">Give pets</div><div class="sgrid">'
 $('lbe-body').style.maxWidth='560px';
 $('lbe-body').innerHTML='<h2 style="margin:0 0 4px">🎮 Edit player: '+row.n+'</h2><p class="note" style="margin:0 0 8px">Changes the stats inside that player game. It applies within about 20 seconds if they are online, or when they next log in. Leave a box empty to leave that stat alone.</p>'
 +'<div class="afield"><label>Mode</label>'+sel('ple-mode','<option value="set">Set to this value</option><option value="add">Add to their current value</option>')+'</div>'
-+'<div class="tabs" id="ple-tabs">'+['💰 Economy','🚽 Room','⭐ Prestige','🐾 Pets'].map(function(t,i){return'<button class="tab'+(i?'':' on')+'" data-ptb="'+i+'">'+t+'</button>'}).join('')+'</div>'
++'<div class="tabs" id="ple-tabs">'+['💰 Economy','🚽 Room','⭐ Prestige','🐾 Pets','🗑️ Reset'].map(function(t,i){return'<button class="tab'+(i?'':' on')+'" data-ptb="'+i+'">'+t+'</button>'}).join('')+'</div>'
 +'<div data-pp="0">'+grid(ec)+'</div>'
 +'<div data-pp="1" hidden><div class="afield"><label>Room to edit</label>'+sel('ple-room','<option value="-1">Their current room</option>'+opts(TN,function(n,i){return'Tier '+(i+1)+' - '+n}))+'</div>'+grid(rm)+'</div>'
 +'<div data-pp="2" hidden>'+grid(pr)+'</div>'
 +'<div data-pp="3" hidden><div class="alab">Current counts</div><p class="note" style="margin:0 0 6px">Raises or lowers how many they already have. Equipping or hatching more also adds slots if needed. Lowering pets owned removes the weakest unlocked ones first, and raising it adds Tier 1 Common pets. New eggs use the pet tier chosen under Give pets.</p>'+grid(cnt)+'<div class="alab">Upgrades</div>'+grid(pt)+give+'</div>'
++'<div data-pp="4" hidden><p class="note" style="margin:0 0 8px">Resets that player\'s saved game. Their account, username and password stay. It applies within about 20 seconds if they are online, or when they next log in. This cannot be undone.</p>'
++'<div class="afield"><label>What to reset</label>'+sel('ple-rs','<option value="run">This run only (keeps prestige points, ascensions and pets)</option><option value="pets">Pets and hatchery only</option><option value="game">Everything (full wipe, including ascensions)</option>')+'</div>'
++'<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="big" id="ple-reset" style="background:#e5484d;color:#fff;padding:8px 16px">Reset player</button></div></div>'
 +'<div id="lbe-msg" class="smsg"></div>'
 +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="tab" id="lbe-x">Cancel</button><button class="big" id="ple-send" style="padding:8px 16px">Send to player</button></div>';
 $('ple-tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-ptb]');if(!b)return;var n=b.dataset.ptb;
 document.querySelectorAll('#lbe-body [data-pp]').forEach(function(d){d.hidden=d.dataset.pp!==n});
 document.querySelectorAll('#ple-tabs button').forEach(function(x){x.classList.toggle('on',x===b)})});
 $('lbe-x').onclick=closeLbe;
+var rsT;
+$('ple-reset').onclick=function(){
+var b=this;
+if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to confirm';clearTimeout(rsT);rsT=setTimeout(function(){delete b.dataset.arm;b.textContent='Reset player'},4000);return}
+clearTimeout(rsT);delete b.dataset.arm;b.textContent='Reset player';
+var kind=$('ple-rs').value,obj={id:row.id,rs:kind,t:Date.now()};
+upCmd(['HSET',EDK,k,JSON.stringify(obj)]).then(function(){smsg('lbe-msg','Reset sent! It applies the next time that player game checks in.',true)}).catch(function(){smsg('lbe-msg','Could not reach the online server.')})};
 $('ple-send').onclick=function(){
 var f={},g={},any=false;
 document.querySelectorAll('#lbe-body [data-pf]').forEach(function(el){if(el.value==='')return;var v=Math.floor(+el.value);if(isFinite(v)&&v>=0){f[el.dataset.pf]=v;any=true}});
@@ -1511,7 +1521,19 @@ var obj={id:row.id,m:$('ple-mode').value,rm:+$('ple-room').value,f:f,g:g,et:+$('
 upCmd(['HSET',EDK,k,JSON.stringify(obj)]).then(function(){smsg('lbe-msg','Sent! It applies the next time that player game checks in.',true)}).catch(function(){smsg('lbe-msg','Could not reach the online server.')})};
 $('lbe-gate').classList.add('on');snd('open');
 }
+function applyReset(kind){
+var keepP=S.p,kp=PT();
+if(kind==='game')S=newS();
+else if(kind==='run'){S=newS();S.p=keepP;S.pets=kp;S.cash=START[PL('head')]}
+else if(kind==='pets'){S.pets=newS().pets}
+else return;
+gen++;busy=[0,0,0,0,0,0];messes=0;tabKey='';roomBG.k='';PK={};
+room.querySelectorAll('.ppl,.mess,.pop,.cln').forEach(function(x){x.remove()});
+drawRoom();syncCleaners();render();if(!$('pg-pets').hidden)petsRender();
+news('🛡️ The Overlord reset your '+(kind==='game'?'whole game':kind==='run'?'current run':'pets and hatchery')+'.');snd('warn');saveNow();lbPush(1);svPush(1);
+}
 function applyEdit(e){
+if(e.rs){applyReset(e.rs);return}
 var f=e.f||{},g=e.g||{},add=e.m==='add',P=S.p,PP=PT(),i;
 function nv(cur,v,max){v=Number(v);if(!isFinite(v))return cur;var r=Math.max(0,Math.floor(add?(Number(cur)||0)+v:v));return max!=null?Math.min(max,r):r}
 if(f.tier!=null){var nt=Math.max(1,Math.min(10,Math.floor(add?S.unlocked+1+Number(f.tier):Number(f.tier))))-1;if(S.tier>nt)swap(nt);S.unlocked=nt}
