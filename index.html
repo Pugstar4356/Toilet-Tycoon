@@ -197,7 +197,7 @@ html.nonews #newscard{display:none}
 <div><h1>🚽 Toilet <span>Tycoon</span></h1><p class="tag">One tiny loo. One enormous bathroom empire.</p></div>
 <div class="hdr-r"><button class="big" id="tips">💸 Collect tips</button><div class="acct" id="acct" hidden><span id="acct-name"></span><button class="tab" id="logout">Log out</button></div></div>
 </header>
-<nav class="tabs pages"><button class="tab on" id="nav-game">🏢 Bathroom</button><button class="tab" id="nav-pets">🥚 Pets</button><button class="tab" id="nav-lb">🏆 Leaderboard</button><button class="tab" id="nav-set">⚙️ Settings</button></nav>
+<nav class="tabs pages"><button class="tab on" id="nav-game">🏢 Bathroom</button><button class="tab" id="nav-pets">🥚 Pets</button><button class="tab" id="nav-lb">🏆 Leaderboard <small id="lb-tmr" style="opacity:.75"></small></button><button class="tab" id="nav-set">⚙️ Settings</button></nav>
 <section class="stats">
 <div class="card stat"><small>💰 Cash</small><b id="cash"></b></div>
 <div class="card stat"><small>👥 Customers served</small><b id="served"></b></div>
@@ -267,7 +267,8 @@ html.nonews #newscard{display:none}
 <div id="pg-lb" hidden>
 <section class="card sec"><div class="ttl"><h2>🏆 Leaderboard</h2><span class="lvl" id="lb-count"></span></div>
 <p class="note" id="lb-note" style="margin-top:0">Ranks every account on this device. Click a column to sort. Default order: Ascension, then Prestiges, then Customers.</p>
-<div id="lb-admin" hidden style="margin:0 0 10px;display:flex;gap:8px"><button class="tab" id="lb-add">➕ Add entry</button><button class="tab" id="lb-ref">🔄 Refresh</button></div>
+<div class="row" style="margin:0 0 10px;flex-wrap:wrap;gap:6px"><span>⏱ Next update in <b id="lb-timer" style="color:var(--green)">--:--</b></span><small id="lb-upd" style="color:var(--muted)"></small></div>
+<div id="lb-admin" hidden style="margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="tab" id="lb-add">➕ Add entry</button><button class="tab" id="lb-ref">🔄 Refresh</button><span style="color:var(--muted);font-weight:700;font-size:.8rem">Update every</span><input type="number" id="lb-int" class="sinp" min="0.5" step="0.5" style="width:80px"><span style="color:var(--muted);font-weight:700;font-size:.8rem">min</span><button class="tab" id="lb-intset">Set</button></div>
 <div style="overflow-x:auto"><table class="odds lb" id="lb-table"></table></div></section>
 </div>
 <div id="pg-pets" hidden>
@@ -318,6 +319,9 @@ html.nonews #newscard{display:none}
 <fieldset><legend>Leaderboard</legend>
 <div class="alab">Manage the online leaderboard</div>
 <p class="hint">Edit any player's stats, add fake entries, or hide and delete players. Frozen entries cannot be overwritten by the player's own game. You can also use the Edit buttons on the Leaderboard page.</p>
+<div class="alab">Update interval</div>
+<div class="ar"><input type="number" id="a-lbint" value="5" min="0.5" step="0.5"><button data-a="lbInt">Set update interval (minutes)</button></div>
+<div class="alab">Entries</div>
 <div class="ar"><button data-a="lbOpen">Open leaderboard</button><button data-a="lbAdd" class="alt">Add entry</button><button data-a="lbRefresh" class="alt">Refresh</button></div>
 </fieldset>
 <fieldset><legend>Save data</legend>
@@ -822,7 +826,7 @@ setInterval(function(){S.clean=Math.max(0,100-messes*12);
 if(SET.auto&&S.tips>0){S.cash+=S.tips;S.tips=0}
 bgStep(0.2);render()},200);
 setInterval(function(){document.querySelectorAll('.ppl:not(.sit),.cln[data-b]').forEach(function(el){el.dataset.f=el.dataset.f==='0'?'1':'0'})},180);
-setInterval(function(){saveNow();lbPush()},3000);
+setInterval(function(){saveNow()},3000);
 var rt;
 $('reset').onclick=function(){
 var b=$('reset');
@@ -1115,6 +1119,7 @@ slotEq:function(){PT().xe++},
 clearPets:function(){var P=PT();P.inv=[];P.eq=[];P.inc=[]},
 export:function(){$('a-save').value=JSON.stringify(S)},
 import:function(){try{var q=JSON.parse($('a-save').value),n=newS();for(var k in q)n[k]=q[k];S=n;aReset();news('Save imported via admin panel.')}catch(e){alert('Invalid save data')}},
+lbInt:function(){setLbInt(aNum('a-lbint'))},
 lbOpen:function(){showPage(2)},
 lbAdd:function(){openLbEdit(null)},
 lbRefresh:function(){lbPull(true)},
@@ -1245,7 +1250,7 @@ $('au-go').onclick=function(){try{authSubmit()}catch(e){var d=$('au-diag');d.sty
 $('logout').onclick=logout;
 // ---------- online leaderboard (Upstash Redis REST) ----------
 var UP={url:'https://mature-goldfish-237572.upstash.io',token:'gQAAAAAAA6AEAAIgcDI3NTJmOTI3MTM5Njc0NTZhYjZlNWRhYmJkMDk0NDdhNQ',hash:'tt:lb'};
-var LBON={rows:null,last:0,err:'',busy:false,pushAt:0,sig:'',sigAt:0,owned:'',conflict:false};
+var LBON={rows:null,last:0,err:'',busy:false,pushAt:0,sig:'',sigAt:0,owned:'',conflict:false,int:300,off:0,tick:-1,tint:300,upd:0};
 function upCmd(cmd){
 return fetch(UP.url,{method:'POST',headers:{'Authorization':'Bearer '+UP.token,'Content-Type':'application/json'},body:JSON.stringify(cmd)})
 .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
@@ -1280,19 +1285,42 @@ var v=null;try{v=JSON.parse(r[i+1])}catch(e){}
 if(!v||r[i]===ADMIN_KEY)continue;
 function num(x){x=Number(x);return isFinite(x)&&x>0?x:0}
 rows.push({k:String(r[i]),n:String(v.n||r[i]).replace(/[^A-Za-z0-9_]/g,'').slice(0,16)||'player',asc:num(v.asc),all:num(v.all),srv:num(v.srv),pets:num(v.pets),cash:num(v.cash),id:String(v.id||''),ovr:v.ovr?1:0,hid:v.hid?1:0})}
-LBON.rows=rows;LBON.err='';LBON.last=Date.now()
+LBON.rows=rows;LBON.err='';LBON.last=Date.now();LBON.upd=Date.now()
 }).catch(function(){LBON.err='Could not reach the online leaderboard.';LBON.last=Date.now()})
 .then(function(){LBON.busy=false;if(!$('pg-lb').hidden)lbRender()})}
 // leaderboard
+// ---- shared update schedule (interval is set by the admin and stored online) ----
+function lbIntTxt(){var s=LBON.int;return s<120?s+' seconds':s%60===0?(s/60)+' minute'+(s===60?'':'s'):(s/60).toFixed(1)+' minutes'}
+function lbNow(){return Date.now()+(LBON.off||0)}
+function lbNext(){var ms=LBON.int*1000;return(Math.floor(lbNow()/ms)+1)*ms}
+function lbCfg(){
+return upCmd(['GET','tt:lbint']).then(function(v){var n=parseInt(v,10);if(isFinite(n)&&n>=30&&n<=86400)LBON.int=n;return upCmd(['TIME'])})
+.then(function(t){if(t&&t.length)LBON.off=Number(t[0])*1000+Math.floor(Number(t[1])/1000)-Date.now()}).catch(function(){})}
+function setLbInt(min){
+if(!ADM_OK)return;var s=Math.round(min*60);
+if(!isFinite(s)||s<30||s>86400){alert('Enter between 0.5 and 1440 minutes.');return}
+upCmd(['SET','tt:lbint',String(s)]).then(function(){LBON.int=s;LBON.tint=s;LBON.tick=Math.floor(lbNow()/(s*1000));snd('ok');news('Leaderboard now updates every '+lbIntTxt()+'.');render();if(!$('pg-lb').hidden)lbRender()}).catch(function(){alert('Could not reach the online leaderboard.')})}
+function fmtClock(x){x=Math.max(0,x);var h=Math.floor(x/3600),m=Math.floor(x%3600/60),s=x%60;return(h?h+':'+('0'+m).slice(-2):m)+':'+('0'+s).slice(-2)}
+setInterval(function(){
+var ms=LBON.int*1000,id=Math.floor(lbNow()/ms);
+if(LBON.tick<0||LBON.tint!==LBON.int){LBON.tick=id;LBON.tint=LBON.int}
+else if(id!==LBON.tick){LBON.tick=id;setTimeout(function(){lbPush(1)},Math.random()*3000);setTimeout(function(){lbPull(true)},6000)}
+var t=fmtClock(Math.ceil((lbNext()-lbNow())/1000));
+$('lb-tmr').textContent='· '+t;$('lb-timer').textContent=t;
+$('lb-upd').textContent=LBON.upd?'Last updated '+new Date(LBON.upd).toLocaleTimeString():'Not loaded yet';
+var ie=$('lb-int');if(ie&&document.activeElement!==ie&&+ie.value!==LBON.int/60)ie.value=LBON.int/60;
+},1000);
+$('lb-intset').onclick=function(){setLbInt(+$('lb-int').value)};
+lbCfg();setInterval(lbCfg,60000);
 var LBSORT='asc',LBCOLS=[['asc','🌌 Ascension'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
 function lbRender(){
 if(ACC)saveNow();
-lbPull();lbPush();
+if(!LBON.rows)lbPull();
 var A=getAccts(),rows,MEK=ACC;
 if(LBON.rows){
 var mine=LBON.rows.filter(function(r){return r.k===MEK})[0];
 rows=LBON.rows.filter(function(r){return r.k!==MEK});
-if(mine&&mine.ovr)rows.push(mine);
+if(mine)rows.push(mine);
 else if(MEK&&MEK!==ADMIN_KEY&&A[MEK]&&!LBON.conflict){var st=A[MEK].st||{};rows.push({k:MEK,n:A[MEK].name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0})}
 else if(MEK&&A[MEK]&&LBON.conflict){var o=LBON.rows.filter(function(r){return r.k===MEK})[0];if(o)rows.push(o)}
 }else{
@@ -1304,7 +1332,7 @@ rows.forEach(function(r,i){
 h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Edit</button></td>':'')+'</tr>'});
 $('lb-table').innerHTML=h;
 $('lb-count').textContent=rows.length+' player'+(rows.length===1?'':'s');
-var note='🌐 Online leaderboard: ranks players from every device. Click a column to sort.';
+var note='🌐 Online leaderboard: ranks players from every device and refreshes every '+lbIntTxt()+'. Click a column to sort.';
 if(!LBON.rows)note='Connecting to the online leaderboard… showing this device only for now.';
 if(LBON.err)note='⚠️ '+LBON.err+(LBON.rows?' Showing the last list we got.':' Showing this device only.');
 if(LBON.conflict)note+=' Another player already uses your username online, so your scores are not being posted. Make a new account with a different name.';
