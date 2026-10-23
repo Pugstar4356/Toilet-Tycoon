@@ -506,10 +506,17 @@ if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to confirm';clearT
 clearTimeout(pt);delete b.dataset.arm;
 var g=pgain();if(!g)return;
 var p=S.p,keepPets=PT();p.pts+=g;p.tot+=g;p.runs++;p.all=(p.all||0)+1;
-S=newS();S.p=p;S.pets=keepPets;S.cash=START[PL('head')];
+S=newS();S.p=p;
+var np=PT(),oe=keepPets.eq.filter(function(id){return petOf0(keepPets,id)});
+np.inv=keepPets.inv;np.n=keepPets.n||0;np.disc=keepPets.disc||[];
+np.eq=oe.slice(0,eqSlots());
+var movedPets=oe.length-np.eq.length;
+np.inc=keepPets.inc.slice(0,incSlots());
+S.cash=START[PL('head')];
+var eggRef=0;keepPets.inc.slice(incSlots()).forEach(function(e){eggRef+=eggCost(e.t)});S.cash+=eggRef;
 gen++;busy=[0,0,0,0,0,0];messes=0;tabKey='';
 room.querySelectorAll('.ppl,.mess,.pop,.cln').forEach(function(e){e.remove()});
-snd('prestige');news('Prestige! You gained '+g+' points. A fresh start awaits.');
+snd('prestige');news('Prestige! You gained '+g+' points. Hatchery upgrades were reset; your pets were kept'+(movedPets?' ('+movedPets+' moved from equipped back to storage)':'')+(eggRef?' and extra eggs were refunded for '+fmt(eggRef):'')+'.');
 drawRoom();render();
 };
 var at;
@@ -874,6 +881,7 @@ var SEC=[
 function petVal(p){var v=PBASE[p.ty]*(1+0.45*p.t)*RM[p.r];return p.ty==='mess'?Math.min(0.6,v):p.ty==='vip'?Math.min(0.5,v):v}
 function boosts(p){if(p.sec!=null)return SEC[p.sec].b;var o={};o[p.ty]=petVal(p);return o}
 function PB(ty){var eq=PT().eq,v=0,i,p;for(i=0;i<eq.length;i++){p=petOf(eq[i]);if(p)v+=boosts(p)[ty]||0}return ty==='mess'?Math.min(0.9,v):ty==='vip'?Math.min(0.5,v):v}
+function petOf0(P,id){var i;for(i=0;i<P.inv.length;i++)if(P.inv[i].id===id)return P.inv[i];return null}
 function incSlots(){return 2+PT().xs+PT().us}
 function eqSlots(){return 2+PT().xe+PT().ue}
 function eggBase(t){return Math.round(400*TMUL[t])}
