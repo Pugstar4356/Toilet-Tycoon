@@ -184,6 +184,7 @@ html.nonews #newscard{display:none}
 @keyframes rv{from{transform:scale(.3) rotate(-10deg);opacity:0}}
 .sec{margin-bottom:16px}
 @media (max-width:760px){.layout,.bottom{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}h1{font-size:1.6rem}}
+.pc{position:relative}.stk{position:absolute;top:6px;right:6px;background:var(--green);color:var(--ink);font:800 12px monospace;border-radius:8px;padding:2px 7px}
 </style>
 </head>
 <body>
@@ -272,7 +273,7 @@ html.nonews #newscard{display:none}
 <div class="shop"><div class="ico">⚡</div><div><b id="up-spd-nm"></b><small id="up-spd-ds"></small></div><button class="buy" data-pa="upspd" id="up-spd"></button></div>
 <div class="shop"><div class="ico">🐾</div><div><b id="up-eq-nm"></b><small id="up-eq-ds"></small></div><button class="buy" data-pa="upeq" id="up-eq"></button></div>
 <div class="shop"><div class="ico">📦</div><div><b id="up-sto-nm"></b><small id="up-sto-ds"></small></div><button class="buy" data-pa="upsto" id="up-sto"></button></div></section>
-<section class="card sec"><div class="ttl"><h2>🥚 Egg shop</h2><span class="lvl">Egg tier matches room tier</span></div><p class="note" style="margin-top:0">Base odds: Common 60% · Rare 28% · Epic 10% · Legendary 2%. Higher tier eggs give stronger pets. 🍀 Each egg tier has its own Luck upgrade that improves its rarity and secret odds. 🌟 Pets survive prestige!</p><div class="pgrid" id="pet-shop"></div></section>
+<section class="card sec"><div class="ttl"><h2>🥚 Egg shop</h2><span class="lvl">Egg tier matches room tier</span></div><p class="note" style="margin-top:0">Base odds: Common 60% · Rare 28% · Epic 10% · Legendary 2%. Higher tier eggs give stronger pets. 🍀 Each egg tier has its own Luck upgrade that improves its rarity odds (secret pets are never affected by luck). 🌟 Secret pets are insanely rare from Tier 1 eggs and get easier to find with every egg tier. Pets survive prestige but are lost when you ascend.</p><div class="pgrid" id="pet-shop"></div></section>
 <section class="card sec"><div class="ttl"><h2>🐶 Your pets</h2><span class="lvl" id="inv-count"></span></div><div class="pgrid" id="pet-inv"></div></section>
 </div>
 <section class="card" id="admin" hidden style="margin-top:16px">
@@ -313,6 +314,7 @@ html.nonews #newscard{display:none}
 <div class="foot"><button id="admbtn" hidden>🛡️ Admin</button></div>
 </main>
 <div class="gate" id="odds-gate"><div class="box" style="max-width:560px;max-height:88vh;overflow:auto"><div id="odds-body"></div><div style="text-align:right;margin-top:14px"><button class="big" id="odds-close" style="padding:8px 16px">Close</button></div></div></div>
+<div class="gate" id="rel-gate"><div class="box" id="rel-body"></div></div>
 <div class="gate on" id="auth" style="z-index:80;background:var(--bg1)"><div class="box" style="max-width:380px">
 <h1 style="font-size:1.7rem;margin:0 0 4px;text-align:center">🚽 Toilet <span>Tycoon</span></h1>
 <p class="note" style="text-align:center;margin:0 0 14px">Create an account to save your progress and join the leaderboard.</p>
@@ -450,7 +452,7 @@ function prender(){
 $('ppts').textContent='Points: '+S.p.pts+' · Prestiges: '+S.p.runs;
 var A=S.p.asc||0,need=ascNeed(),have=S.p.runs;
 $('ascn').textContent='Ascension '+A+' · Cash ×'+(1+A);
-$('ascinfo').textContent='🔁 Prestiges: '+Math.min(have,need)+' / '+need+' (lifetime '+(S.p.all||0)+'). Ascending resets your prestige points, prestige upgrades and prestige count (you keep your pets) and raises your permanent cash multiplier from ×'+(1+A)+' to ×'+(2+A)+'. The next ascension will need '+(need+1)+' prestiges.';
+$('ascinfo').textContent='🔁 Prestiges: '+Math.min(have,need)+' / '+need+' (lifetime '+(S.p.all||0)+'). Ascending completely resets your progress (cash, rooms, upgrades, prestige points, prestige count, pets and stats). Only your ascension count is kept, and it raises your permanent cash multiplier from ×'+(1+A)+' to ×'+(2+A)+'. The next ascension will need '+(need+1)+' prestiges.';
 $('ascbar').style.width=Math.min(100,have/need*100)+'%';
 var ab=$('abtn');if(!ab.dataset.arm)ab.textContent=have>=need?'🌌 Ascend · cash ×'+(2+A):'🌌 Ascend ('+Math.max(0,need-have)+' more prestiges)';
 ab.disabled=have<need;
@@ -488,8 +490,8 @@ $('abtn').onclick=function(){
 var b=$('abtn');if(S.p.runs<ascNeed())return;
 if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to confirm ascension';clearTimeout(at);at=setTimeout(function(){delete b.dataset.arm},4000);return}
 clearTimeout(at);delete b.dataset.arm;
-var A=(S.p.asc||0)+1,keepPets=PT(),all=S.p.all||0,sv0=S.p.srv||0;
-S=newS();S.p={pts:0,tot:0,runs:0,up:{},asc:A,all:all,srv:sv0};S.pets=keepPets;S.cash=START[0];
+var A=(S.p.asc||0)+1;
+S=newS();S.p={pts:0,tot:0,runs:0,up:{},asc:A,all:0,srv:0};S.cash=START[0];
 gen++;busy=[0,0,0,0,0,0];messes=0;tabKey='';
 room.querySelectorAll('.ppl,.mess,.pop,.cln').forEach(function(e){e.remove()});
 snd('ascend');news('🌌 Ascended! Permanent cash multiplier is now ×'+(1+A)+'.');
@@ -739,7 +741,6 @@ news('✨ Golden mess collected! ×3 money and ×2 customers for 30s.');render()
 room.appendChild(m);snd('goldspawn');news('✨ A golden mess appeared! Click it fast, cleaners can not clean it.');
 }
 function addMess(nog){
-if(!nog&&(GOLDALL||Math.random()<GOLDCH)){goldMess();return}
 if(messes>=6)return;messes++;snd('splat');
 var m=document.createElement('div');m.className='mess';m.title='Clean me up!';
 m.style.left=(8+Math.random()*84)+'%';m.style.top='218px';m.innerHTML=messImg(0);
@@ -750,6 +751,11 @@ room.appendChild(p);setTimeout(function(){p.remove()},1000);render();
 };
 m.dataset.t=Date.now();m.dataset.a=Date.now();room.appendChild(m);
 }
+var GOLDEVERY=120; // golden messes spawn on their own timer: on average once every ~2 minutes, independent of customers and normal messes
+setInterval(function(){
+if(!ACC||document.hidden||room.querySelector('.mess.gold'))return;
+if(GOLDALL||Math.random()<1/GOLDEVERY)goldMess();
+},1000);
 var AP={K:'#3a1010',B:'#a8402c',h:'#d9694f',D:'#6e2418',W:'#fff',E:'#d00',M:'#3a1010'};
 function attack(m){snd('hit');
 var loss=Math.min(S.cash,Math.max(1,Math.round(S.fee*2)));S.cash-=loss;
@@ -834,13 +840,13 @@ var PNAME={money:'Money',speed:'Customers',tips:'Tips',mess:'Messes',vip:'VIP ch
 function PT(){var p=S.pets;if(!p||typeof p!=='object')p=S.pets={};p.inv=p.inv||[];p.inc=p.inc||[];p.eq=p.eq||[];p.n=p.n||0;p.xs=p.xs||0;p.xe=p.xe||0;p.us=p.us||0;p.uh=p.uh||0;p.ue=p.ue||0;p.sv=p.sv||0;p.disc=p.disc||[];p.lk=p.lk||[];return p}
 function petOf(id){var inv=PT().inv,i;for(i=0;i<inv.length;i++)if(inv[i].id===id)return inv[i];return null}
 var SEC=[
-{n:'Golden Plunger God',c:'#ffd23f',b2:'#fff3a8',k:'crown',w:50,b:{money:20,tips:10}},
-{n:'Turbo Toilet Spirit',c:'#4de0ff',b2:'#d6f8ff',k:'halo',w:30,b:{speed:15,vip:0.5}},
-{n:'Sparkle Sewer Phoenix',c:'#ff6a3d',b2:'#ffd08a',k:'wings',w:15,b:{mess:0.9,money:8,speed:8}},
-{n:'The Porcelain Overlord',c:'#e44dff',b2:'#fbd6ff',k:'horns',w:5,b:{money:50,speed:30,tips:30,mess:0.9,vip:0.6}}];
+{n:'Golden Plunger God',c:'#ffd23f',b2:'#fff3a8',k:'crown',w:50,b:{money:6,tips:3}},
+{n:'Turbo Toilet Spirit',c:'#4de0ff',b2:'#d6f8ff',k:'halo',w:30,b:{speed:5,vip:0.25}},
+{n:'Sparkle Sewer Phoenix',c:'#ff6a3d',b2:'#ffd08a',k:'wings',w:15,b:{mess:0.5,money:3,speed:3}},
+{n:'The Porcelain Overlord',c:'#e44dff',b2:'#fbd6ff',k:'horns',w:5,b:{money:8,speed:5,tips:5,mess:0.6,vip:0.3}}];
 function petVal(p){var v=PBASE[p.ty]*(1+0.45*p.t)*RM[p.r];return p.ty==='mess'?Math.min(0.6,v):p.ty==='vip'?Math.min(0.5,v):v}
 function boosts(p){if(p.sec!=null)return SEC[p.sec].b;var o={};o[p.ty]=petVal(p);return o}
-function PB(ty){var eq=PT().eq,v=0,i,p;for(i=0;i<eq.length;i++){p=petOf(eq[i]);if(p)v+=boosts(p)[ty]||0}return ty==='mess'?Math.min(0.9,v):v}
+function PB(ty){var eq=PT().eq,v=0,i,p;for(i=0;i<eq.length;i++){p=petOf(eq[i]);if(p)v+=boosts(p)[ty]||0}return ty==='mess'?Math.min(0.9,v):ty==='vip'?Math.min(0.5,v):v}
 function incSlots(){return 2+PT().xs+PT().us}
 function eqSlots(){return 2+PT().xe+PT().ue}
 function eggBase(t){return Math.round(400*TMUL[t])}
@@ -865,7 +871,8 @@ var LK_MAX=5;
 function lkLvl(t){return PT().lk[t]||0}
 function lkMul(t){return 1+0.3*lkLvl(t)}
 function lkCost(t,l){return Math.round(150*TMUL[t]*Math.pow(3,l))}
-function secCh(t){return(0.0025+0.0005*t)*(1+0.4*lkLvl(t))}
+var SEC_TIER=[0.00001,0.000025,0.00006,0.00014,0.00033,0.00077,0.0018,0.0042,0.0098,0.02]; // Tier 1 = 1 in 100,000 ... Tier 10 = 1 in 50, never affected by luck
+function secCh(t){return SEC_TIER[Math.max(0,Math.min(9,t))]}
 function rarW(t){var m=lkMul(t);return[RCH[0],RCH[1]*m,RCH[2]*m,RCH[3]*m]}
 function rarProbs(t){var w=rarW(t),sm=w[0]+w[1]+w[2]+w[3],ps=secCh(t);return w.map(function(x){return x/sm*(1-ps)*100})}
 function rollRar(t){var w=rarW(t),sm=w[0]+w[1]+w[2]+w[3],r=Math.random()*sm,i,a=0;for(i=0;i<4;i++){a+=w[i];if(r<a)return i}return 0}
@@ -918,9 +925,10 @@ E(12,19.5,9.2,9.8,c);E(12,12.5,7.2,8.4,c);
 E(8.5,16,2,2,q);E(15.5,21,2.6,2.6,q);E(11,25,1.6,1.6,q);E(14,11,1.3,1.3,q);E(9.5,9.5,1,1,q);
 },function(R,E){E(8,10.5,1.4,3,'rgba(255,255,255,.65)')});
 }
-function petCard(p,eq){
-return '<div class="pc r'+p.r+(eq?' eqd':'')+'"><div class="pim '+petCls(p)+'"></div><b>'+petName(p)+'</b><small>'+petEm(p)+' '+petTxt(p)+'</small>'+(eq?'<span class="eqtag">EQUIPPED</span>':'')+
-'<div class="pb"><button class="buy" data-pa="'+(eq?'unequip':'equip')+'" data-id="'+p.id+'">'+(eq?'Unequip':'Equip')+'</button><button class="mop" data-pa="release" data-id="'+p.id+'">Release · '+fmt(relVal(p))+'</button></div></div>';
+function gkey(p){return p.sec!=null?'s'+p.sec:p.t+'_'+p.r+'_'+p.ty}
+function petCard(p,eq,n){
+return '<div class="pc r'+p.r+(eq?' eqd':'')+'"><div class="pim '+petCls(p)+'"></div><b>'+petName(p)+'</b><small>'+petEm(p)+' '+petTxt(p)+'</small>'+(eq?'<span class="eqtag">EQUIPPED</span>':'')+(n>1?'<span class="stk">×'+n+'</span>':'')+
+'<div class="pb"><button class="buy" data-pa="'+(eq?'unequip':'equip')+'" data-id="'+p.id+'">'+(eq?'Unequip':'Equip')+'</button><button class="mop" data-pa="release" data-id="'+p.id+'">Release'+(n>1?'…':' · '+fmt(relVal(p)))+'</button></div></div>';
 }
 function buyEgg(t){
 var P=PT(),c=eggCost(t);
@@ -936,7 +944,7 @@ else pet=newPet(e.t,rollRar(e.t));
 $('reveal').innerHTML='<div style="text-align:center;font-weight:800;margin-bottom:8px">'+(sc?'🌟🌟 SECRET PET!!! You hatched '+petName(pet)+'! 🌟🌟':'🎉 You hatched a '+petName(pet)+'!')+'</div>'+petCard(pet,false);
 snd(sc?'secret':'hatch');news((sc?'🌟 SECRET PET! ':'🥚 Hatched a ')+petName(pet)+' ('+petTxt(pet)+')');
 }
-function fp(x){return String(parseFloat(x.toFixed(4)))}
+function fp(x){return x>=1?String(parseFloat(x.toFixed(2))):String(parseFloat(x.toPrecision(2)))}
 function oneIn(pp){return '1 in '+Math.round(100/pp).toLocaleString()}
 function showOdds(t){
 var ps=secCh(t),pr=rarProbs(t),P=PT(),h,r;
@@ -994,7 +1002,8 @@ P.inc.forEach(function(e,i){if(now>=e.at)return;var pb=$('ib-'+i),tt=$('it-'+i);
 var vk=P.inv.map(function(p){return p.id}).join(',')+'|'+P.eq.join(',');
 if(PK.v!==vk){PK.v=vk;
 var eqs=P.eq.map(petOf).filter(Boolean),rest=P.inv.filter(function(p){return P.eq.indexOf(p.id)<0}).sort(function(a,b){return b.r-a.r||b.t-a.t});
-h=eqs.map(function(p){return petCard(p,true)}).join('')+rest.map(function(p){return petCard(p,false)}).join('');
+var gs={},go=[];rest.forEach(function(p){var k=gkey(p);if(!gs[k]){gs[k]={p:p,n:0};go.push(k)}gs[k].n++});
+h=eqs.map(function(p){return petCard(p,true)}).join('')+go.map(function(k){return petCard(gs[k].p,false,gs[k].n)}).join('');
 $('pet-inv').innerHTML=h||'<p class="note" style="grid-column:1/-1;margin:0">No pets yet. Buy an egg and hatch your first one!</p>'}
 $('inv-count').textContent=P.inv.length+' / '+stoCap()+' pets';
 }
@@ -1011,9 +1020,27 @@ else if(a==='upeq'){var c3=upEqCost(P.ue);if(P.ue<UP_EQ_MAX&&S.unlocked>=P.ue+2&
 else if(a==='upspd'){var c2=upSpdCost(P.uh);if(P.uh<UP_SPD_MAX&&S.cash>=c2){S.cash-=c2;var f=(1+0.3*P.uh)/(1+0.3*(P.uh+1)),nw=Date.now();P.uh++;P.inc.forEach(function(e){if(nw<e.at){e.s=nw-(nw-e.s)*f;e.at=nw+(e.at-nw)*f}})}}
 else if(a==='equip'){if(P.eq.length<eqSlots()&&P.eq.indexOf(id)<0){P.eq.push(id);snd('equip')}else snd('error')}
 else if(a==='unequip'){ix=P.eq.indexOf(id);if(ix>=0)P.eq.splice(ix,1);snd('unequip')}
-else if(a==='release'){var pet=petOf(id);if(pet){snd('release');S.cash+=relVal(pet);ix=P.eq.indexOf(id);if(ix>=0)P.eq.splice(ix,1);P.inv=P.inv.filter(function(q){return q.id!==id})}}
+else if(a==='release'){var pet=petOf(id);if(pet){var gk=gkey(pet);if(P.eq.indexOf(id)<0&&relIds(gk).length>1){openRel(gk);return}releaseIds([id])}}
 petsRender();render();
 });
+var REL=null;
+function releaseIds(ids){var P=PT(),tot=0;ids.forEach(function(id){var pet=petOf(id);if(!pet)return;tot+=relVal(pet);var ix=P.eq.indexOf(id);if(ix>=0)P.eq.splice(ix,1);P.inv=P.inv.filter(function(q){return q.id!==id})});if(ids.length)snd('release');S.cash+=tot;return tot}
+function relIds(gk){var P=PT();return P.inv.filter(function(q){return gkey(q)===gk&&P.eq.indexOf(q.id)<0}).map(function(q){return q.id})}
+function relQty(){var q=Math.floor(+$('rel-n').value);if(!isFinite(q)||q<1)q=1;return Math.min(q,REL.n)}
+function relSync(){var q=relQty();$('rel-r').value=q;$('rel-t').textContent='Release '+q+' of '+REL.n+' for '+fmt(q*REL.v);$('rel-go').textContent='Release '+q}
+function openRel(gk){
+var ids=relIds(gk);if(!ids.length)return;var p=petOf(ids[0]);REL={gk:gk,n:ids.length,v:relVal(p)};
+$('rel-body').innerHTML='<h2 style="margin:0 0 8px">Release pets</h2><div style="text-align:center"><div class="pim '+petCls(p)+'" style="margin:0 auto"></div><b>'+petName(p)+'</b><br><small style="color:var(--muted)">'+petTxt(p)+'</small></div><p class="note">You own <b>'+REL.n+'</b> unequipped. Each sells for '+fmt(REL.v)+'. Equipped pets are never included.</p><div style="display:flex;gap:8px;align-items:center"><input type="range" id="rel-r" min="1" max="'+REL.n+'" value="1" style="flex:1"><input type="number" id="rel-n" min="1" max="'+REL.n+'" value="1" class="sinp" style="width:90px"><button class="tab" id="rel-all">All</button></div><p id="rel-t" style="font-weight:800;color:var(--green);margin:10px 0"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="tab" id="rel-x">Cancel</button><button class="big" id="rel-go" style="padding:8px 16px"></button></div>';
+$('rel-r').oninput=function(){$('rel-n').value=this.value;relSync()};
+$('rel-n').oninput=relSync;
+$('rel-n').onchange=function(){this.value=relQty();relSync()};
+$('rel-all').onclick=function(){$('rel-n').value=REL.n;relSync()};
+$('rel-x').onclick=closeRel;
+$('rel-go').onclick=function(){var q=relQty(),ids=relIds(REL.gk).slice(0,q);releaseIds(ids);closeRel();PK={};petsRender();render()};
+$('rel-gate').classList.add('on');snd('open');relSync();
+}
+function closeRel(){if($('rel-gate').classList.contains('on'))snd('close');$('rel-gate').classList.remove('on');REL=null}
+$('rel-gate').addEventListener('click',function(e){if(e.target===this)closeRel()});
 function showPage(n,quiet){
 if(!quiet)snd('nav');
 $('pg-game').hidden=n!==0;$('pg-pets').hidden=n!==1;$('pg-lb').hidden=n!==2;$('pg-set').hidden=n!==3;
@@ -1022,7 +1049,7 @@ if(n===1){PK={};petsRender()}
 if(n===2)lbRender();
 if(n===3)setRender();
 }
-$('odds-close').onclick=closeOdds;$('odds-gate').addEventListener('click',function(e){if(e.target===this)closeOdds()});document.addEventListener('keydown',function(e){if(e.key==='Escape')closeOdds()});
+$('odds-close').onclick=closeOdds;$('odds-gate').addEventListener('click',function(e){if(e.target===this)closeOdds()});document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOdds();closeRel()}});
 $('nav-game').onclick=function(){showPage(0)};$('nav-pets').onclick=function(){showPage(1)};$('nav-lb').onclick=function(){showPage(2)};$('nav-set').onclick=function(){showPage(3)};
 var gbWas=false;
 setInterval(function(){var r=(S.gb||0)-Date.now(),g=$('gbuff');if(r>0)gbWas=true;else if(gbWas){gbWas=false;snd('frenzyEnd')}if(r>0){g.hidden=false;g.innerHTML='✨ Golden frenzy<br>×3 💰 · ×2 👥 · '+Math.ceil(r/1000)+'s'}else g.hidden=true},250);
