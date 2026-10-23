@@ -244,8 +244,8 @@ html.nonews #newscard{display:none}
 </section>
 <section class="card sec"><div class="ttl"><h2>💾 Your data</h2><span class="lvl" id="st-saved"></span></div>
 <div class="srow"><div><b>Save now</b><small>The game also saves automatically every few seconds.</small></div><button class="tab" id="st-savenow">Save now</button></div>
-<div style="padding-top:10px"><textarea id="st-data" class="sinp" style="width:100%;height:70px;font:12px monospace" placeholder="Export your save here, or paste a save to import it"></textarea>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="tab" id="st-exp">Export save</button><button class="tab" id="st-imp">Import save</button></div><div id="st-datamsg" class="smsg"></div></div>
+<div style="padding-top:10px"><textarea id="st-data" class="sinp" style="width:100%;height:70px;font:12px monospace" placeholder="Export your encrypted save here, or paste one to import it"></textarea>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="tab" id="st-exp">Export save</button><button class="tab" id="st-imp">Import save</button><button class="tab" id="st-dl">Download file</button><button class="tab" id="st-ld">Load file</button><input type="file" id="st-file" accept=".ttsave,.txt" hidden></div><div id="st-datamsg" class="smsg"></div></div>
 </section>
 <section class="card sec"><div class="ttl"><h2>👤 Account</h2><span class="lvl" id="st-since"></span></div>
 <div class="srow"><div><b id="st-user">Signed in</b><small>Your progress is saved to this account on this device.</small></div><button class="tab" id="st-logout">Log out</button></div>
@@ -310,11 +310,8 @@ html.nonews #newscard{display:none}
 <div class="ar"><button data-a="export">Export</button><button data-a="import" class="alt">Import</button><button data-a="wipe" class="warn">Wipe save</button></div>
 </fieldset>
 </div></section>
-<div class="foot"><button id="admbtn">🛡️ Admin</button></div>
+<div class="foot"><button id="admbtn" hidden>🛡️ Admin</button></div>
 </main>
-<div class="gate" id="adm-gate"><div class="box"><h2 style="margin-bottom:6px">🛡️ Admin access</h2><p class="note" style="margin:0 0 12px">Enter the 6-digit password.</p>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><input type="password" id="a-pw" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off" style="flex:1;min-width:120px;background:var(--bg2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;letter-spacing:.3em"><button class="big" id="a-unlock" style="padding:8px 14px">Unlock</button><button class="tab" id="a-cancel">Cancel</button></div>
-<div id="a-err" style="color:#ff5a5a;font-weight:700;font-size:.85rem;margin-top:8px;min-height:1.2em"></div></div></div>
 <div class="gate" id="odds-gate"><div class="box" style="max-width:560px;max-height:88vh;overflow:auto"><div id="odds-body"></div><div style="text-align:right;margin-top:14px"><button class="big" id="odds-close" style="padding:8px 16px">Close</button></div></div></div>
 <div class="gate on" id="auth" style="z-index:80;background:var(--bg1)"><div class="box" style="max-width:380px">
 <h1 style="font-size:1.7rem;margin:0 0 4px;text-align:center">🚽 Toilet <span>Tycoon</span></h1>
@@ -804,7 +801,7 @@ setInterval(function(){S.clean=Math.max(0,100-messes*12);
 if(SET.auto&&S.tips>0){S.cash+=S.tips;S.tips=0}
 bgStep(0.2);render()},200);
 setInterval(function(){document.querySelectorAll('.ppl:not(.sit),.cln[data-b]').forEach(function(el){el.dataset.f=el.dataset.f==='0'?'1':'0'})},180);
-setInterval(function(){saveNow()},3000);
+setInterval(function(){saveNow();lbPush()},3000);
 var rt;
 $('reset').onclick=function(){
 var b=$('reset');
@@ -1084,15 +1081,9 @@ r.value='3';
 var sc=$('a-psec');SEC.forEach(function(q,i){sc.innerHTML+='<option value="'+i+'">🌟 '+q.n+'</option>'});
 PTY.forEach(function(k){y.innerHTML+='<option value="'+k+'">'+PEM[k]+' '+PNAME[k]+'</option>'})})();
 var ADM_OK=false;
-function ah(t){var h=5381,i;for(i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return h}
-function openGate(){snd('open');$('adm-gate').classList.add('on');$('a-err').textContent='';$('a-pw').value='';setTimeout(function(){$('a-pw').focus()},30)}
-function closeGate(){if($('adm-gate').classList.contains('on'))snd('close');$('adm-gate').classList.remove('on')}
-function tryUnlock(){
-if(ah($('a-pw').value.trim())===2113173361){ADM_OK=true;closeGate();var a=$('admin');a.hidden=false;a.scrollIntoView({behavior:'smooth',block:'nearest'})}
-else{snd('error');$('a-err').textContent='Wrong password';$('a-pw').value=''}
-}
-$('a-unlock').onclick=tryUnlock;$('a-cancel').onclick=closeGate;
-$('a-pw').addEventListener('keydown',function(e){if(e.key==='Enter')tryUnlock();if(e.key==='Escape')closeGate()});
+var ADMIN_KEY='overlord',ADMIN_SALT='7c1e94b2d05a38f6e1b9a4c27d803f5e',ADMIN_HASH='9986038d3f8c49b90008a48d11b16cf9f7fd1d88cdc4cea454f8a7a8b73a49f4';
+function closeGate(){}
+function admSync(){ADM_OK=(ACC===ADMIN_KEY);$('admbtn').hidden=!ADM_OK;if(!ADM_OK)$('admin').hidden=true}
 $('admin').addEventListener('click',function(e){
 if(!ADM_OK)return;
 var b=e.target.closest('button[data-a]');if(!b)return;
@@ -1101,7 +1092,7 @@ if(b.dataset.a==='export')return;
 tabKey='';roomBG.k='';drawRoom();syncCleaners();render();PK={};petsRender();
 });
 $('a-speed').oninput=function(){if(!ADM_OK)return;ASPEED=+this.value;$('a-speedv').textContent='×'+ASPEED};
-function toggleAdmin(){if(!ADM_OK){openGate();return}var a=$('admin');a.hidden=!a.hidden;if(!a.hidden)a.scrollIntoView({behavior:'smooth',block:'nearest'})}
+function toggleAdmin(){if(!ADM_OK)return;var a=$('admin');a.hidden=!a.hidden;if(!a.hidden)a.scrollIntoView({behavior:'smooth',block:'nearest'})}
 $('admbtn').onclick=toggleAdmin;
 document.addEventListener('keydown',function(e){if(e.ctrlKey&&e.shiftKey&&(e.key==='A'||e.key==='a')){e.preventDefault();toggleAdmin()}});
 // ---------- accounts ----------
@@ -1151,17 +1142,17 @@ function login(k,quiet){
 var A=getAccts();if(!A[k]){authErr('Could not save your account in this browser. Try another browser or host.');return}
 var n=newS();
 try{var raw=localStorage.getItem('tt_save_'+k);if(raw){var q=JSON.parse(raw);for(var key in q)n[key]=q[key]}}catch(e){}
-S=n;ACC=k;KEY='tt_save_'+k;
+S=n;ACC=k;KEY='tt_save_'+k;admSync();
 try{localStorage.setItem('tt_session',k)}catch(e){}
 $('acct-name').textContent='👤 '+A[k].name;$('acct').hidden=false;
 $('au-user').value='';$('au-pw').value='';$('au-pw2').value='';$('au-err').textContent='';
 $('auth').classList.remove('on');
-if(!quiet)snd('login');resetRuntime();showPage(0,1);
+if(!quiet)snd('login');resetRuntime();showPage(0,1);setTimeout(function(){lbPush(1)},800);
 }
 function logout(){
 snd('logout');saveNow();
 try{localStorage.removeItem('tt_session')}catch(e){}
-ACC=null;KEY='';ADM_OK=false;$('admin').hidden=true;closeGate();closeOdds();
+ACC=null;KEY='';admSync();closeOdds();
 S=newS();resetRuntime();showPage(0,1);
 $('acct').hidden=true;
 authMode('login');$('auth').classList.add('on');setTimeout(function(){$('au-user').focus()},30);
@@ -1183,7 +1174,7 @@ if(AUTHMODE==='signup'){
 if(!/^[A-Za-z0-9_]{3,16}$/.test(u))return authErr('Username must be 3-16 letters, numbers or underscores.');
 if(pw.length<6)return authErr('Password must be at least 6 characters.');
 if(pw!==$('au-pw2').value)return authErr('Passwords do not match.');
-if(A[k])return authErr('That username is already taken.');
+if(A[k]||k===ADMIN_KEY)return authErr('That username is already taken.');
 var first=Object.keys(A).length===0,salt=rndHex();
 A[k]={name:u,salt:salt,hash:hashPw(salt,pw),created:Date.now(),st:{}};
 setAccts(A);
@@ -1201,21 +1192,69 @@ $('au-tab-li').onclick=function(){authMode('login')};
 $('au-go').onclick=function(){try{authSubmit()}catch(e){var d=$('au-diag');d.style.display='block';d.textContent='Login error: '+(e&&e.message||e)}};
 ['au-user','au-pw','au-pw2'].forEach(function(id){$(id).addEventListener('keydown',function(e){if(e.key==='Enter')authSubmit()})});
 $('logout').onclick=logout;
+// ---------- online leaderboard (Upstash Redis REST) ----------
+var UP={url:'https://mature-goldfish-237572.upstash.io',token:'gQAAAAAAA6AEAAIgcDI3NTJmOTI3MTM5Njc0NTZhYjZlNWRhYmJkMDk0NDdhNQ',hash:'tt:lb'};
+var LBON={rows:null,last:0,err:'',busy:false,pushAt:0,sig:'',sigAt:0,owned:'',conflict:false};
+function upCmd(cmd){
+return fetch(UP.url,{method:'POST',headers:{'Authorization':'Bearer '+UP.token,'Content-Type':'application/json'},body:JSON.stringify(cmd)})
+.then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+.then(function(j){if(j&&j.error)throw new Error(j.error);return j.result})}
+function lbPush(force){
+if(!ACC||ACC===ADMIN_KEY)return;
+var now=Date.now();if(!force&&now-LBON.pushAt<30000)return;
+var A=getAccts(),a=A[ACC];if(!a||!a.st)return;
+if(!a.lid){a.lid=rndHex();A[ACC]=a;setAccts(A)}
+var st=a.st,sig=[st.asc,st.all,st.srv,st.pets,Math.floor(st.cash)].join('|');
+if(!force&&sig===LBON.sig&&now-LBON.sigAt<300000)return;
+LBON.pushAt=now;
+var me=ACC,lid=a.lid;
+var check=(LBON.owned===me+':'+lid)?Promise.resolve(true):upCmd(['HGET',UP.hash,me]).then(function(v){
+var cur=null;try{cur=v?JSON.parse(v):null}catch(e){}
+if(cur&&cur.id&&cur.id!==lid){LBON.conflict=true;return false}
+LBON.conflict=false;LBON.owned=me+':'+lid;return true});
+check.then(function(ok){
+if(!ok)return;
+return upCmd(['HSET',UP.hash,me,JSON.stringify({id:lid,n:a.name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:Math.floor(st.cash||0),t:now})]).then(function(){LBON.sig=sig;LBON.sigAt=now;LBON.err=''})
+}).catch(function(){LBON.err='Could not reach the online leaderboard.'})}
+function lbRemove(k,lid){
+upCmd(['HGET',UP.hash,k]).then(function(v){var cur=null;try{cur=v?JSON.parse(v):null}catch(e){}
+if(cur&&(!lid||!cur.id||cur.id===lid))return upCmd(['HDEL',UP.hash,k])}).catch(function(){})}
+function lbPull(force){
+if(LBON.busy||(!force&&Date.now()-LBON.last<8000))return;
+LBON.busy=true;
+upCmd(['HGETALL',UP.hash]).then(function(r){
+var rows=[];
+for(var i=0;r&&i+1<r.length;i+=2){
+var v=null;try{v=JSON.parse(r[i+1])}catch(e){}
+if(!v||r[i]===ADMIN_KEY)continue;
+function num(x){x=Number(x);return isFinite(x)&&x>0?x:0}
+rows.push({k:String(r[i]),n:String(v.n||r[i]).replace(/[^A-Za-z0-9_]/g,'').slice(0,16)||'player',asc:num(v.asc),all:num(v.all),srv:num(v.srv),pets:num(v.pets),cash:num(v.cash)})}
+LBON.rows=rows;LBON.err='';LBON.last=Date.now()
+}).catch(function(){LBON.err='Could not reach the online leaderboard.';LBON.last=Date.now()})
+.then(function(){LBON.busy=false;if(!$('pg-lb').hidden)lbRender()})}
 // leaderboard
 var LBSORT='asc',LBCOLS=[['asc','🌌 Ascension'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
 function lbRender(){
 if(ACC)saveNow();
+lbPull();lbPush();
 var A=getAccts(),rows,MEK=ACC;
-{
-rows=Object.keys(A).map(function(k){var a=A[k],st=a.st||{};return{k:k,n:a.name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0}});
-}
+if(LBON.rows){
+rows=LBON.rows.filter(function(r){return r.k!==MEK});
+if(MEK&&MEK!==ADMIN_KEY&&A[MEK]&&!LBON.conflict){var st=A[MEK].st||{};rows.push({k:MEK,n:A[MEK].name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0})}
+else if(MEK&&A[MEK]&&LBON.conflict){var o=LBON.rows.filter(function(r){return r.k===MEK})[0];if(o)rows.push(o)}
+}else{
+rows=Object.keys(A).filter(function(k){return k!==ADMIN_KEY}).map(function(k){var a=A[k],st=a.st||{};return{k:k,n:a.name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0}})}
 rows.sort(function(x,y){return(y[LBSORT]-x[LBSORT])||(y.asc-x.asc)||(y.all-x.all)||(y.srv-x.srv)||(y.cash-x.cash)});
 var h='<tr><th>#</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+'</tr>';
 rows.forEach(function(r,i){
-h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+r.n.replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td></tr>'});
+h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td></tr>'});
 $('lb-table').innerHTML=h;
 $('lb-count').textContent=rows.length+' player'+(rows.length===1?'':'s');
-}
+var note='🌐 Online leaderboard: ranks players from every device. Click a column to sort.';
+if(!LBON.rows)note='Connecting to the online leaderboard… showing this device only for now.';
+if(LBON.err)note='⚠️ '+LBON.err+(LBON.rows?' Showing the last list we got.':' Showing this device only.');
+if(LBON.conflict)note+=' Another player already uses your username online, so your scores are not being posted. Make a new account with a different name.';
+$('lb-note').textContent=note}
 $('lb-table').addEventListener('click',function(e){var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
 setInterval(function(){if(!$('pg-lb').hidden)lbRender()},2000);
 // ---------- settings ----------
@@ -1367,11 +1406,35 @@ function mixTest(k){var a=SET.snd,u=SET.ui,m=SET.amb;SET.snd=true;SET.ui=true;SE
 $('st-mus').addEventListener('change',function(){SET.mus=this.checked;saveSet();musSync();snd(this.checked?'on':'off')});
 $('st-vol').addEventListener('input',musSync);
 $('st-savenow').onclick=function(){saveNow();savedTxt()};
-$('st-exp').onclick=function(){saveNow();$('st-data').value=JSON.stringify(S);$('st-data').select();smsg('st-datamsg','Save exported. Copy it somewhere safe.',true)};
+$('st-exp').onclick=function(){saveNow();$('st-data').value=encSave(S);$('st-data').select();smsg('st-datamsg','Encrypted save exported. Copy it somewhere safe.',true)};
+// ---------- encrypted save export/import ----------
+var SAVEKEY='2c51b88f02286a889ed3b2ea838d289650698b8b03588b2c',SAVETAG='TTSAVE1';
+function ksBytes(nonce,n){var out=[],i=0,h,j;while(out.length<n){h=sha256(SAVEKEY+':enc:'+nonce+':'+(i++));for(j=0;j<64&&out.length<n;j+=2)out.push(parseInt(h.substr(j,2),16))}return out}
+function macOf(nonce,body){return sha256(SAVEKEY+':m2:'+sha256(SAVEKEY+':m1:'+nonce+'.'+body))}
+function encSave(obj){
+var bin=unescape(encodeURIComponent(JSON.stringify({v:1,a:ACC||'',t:Date.now(),d:obj}))),ks=ksBytes(rndHex(),0),nonce=rndHex(),i,out='';
+ks=ksBytes(nonce,bin.length);
+for(i=0;i<bin.length;i++)out+=String.fromCharCode(bin.charCodeAt(i)^ks[i]);
+var body=btoa(out);
+return SAVETAG+'.'+nonce+'.'+body+'.'+macOf(nonce,body)}
+function decSave(str){
+var p=String(str||'').trim().split('.');
+if(p.length!==4||p[0]!==SAVETAG)return null;
+var nonce=p[1],body=p[2],mac=p[3],good=macOf(nonce,body),i,diff=0;
+if(mac.length!==good.length)return null;
+for(i=0;i<good.length;i++)diff|=mac.charCodeAt(i)^good.charCodeAt(i);
+if(diff)return null;
+try{var bin=atob(body),ks=ksBytes(nonce,bin.length),out='';
+for(i=0;i<bin.length;i++)out+=String.fromCharCode(bin.charCodeAt(i)^ks[i]);
+var o=JSON.parse(decodeURIComponent(escape(out)));
+return(o&&o.d&&typeof o.d==='object'&&typeof o.d.cash==='number')?o.d:null}catch(e){return null}}
 var imt;
+$('st-dl').onclick=function(){saveNow();try{var bl=new Blob([encSave(S)],{type:'text/plain'}),a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download=(ACC||'save')+'.ttsave';document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);smsg('st-datamsg','Encrypted save file downloaded.',true)}catch(e){smsg('st-datamsg','Download not available here. Use Export save and copy the text instead.')}};
+$('st-ld').onclick=function(){$('st-file').click()};
+$('st-file').onchange=function(){var f=this.files&&this.files[0],inp=this;if(!f)return;var r=new FileReader();r.onload=function(){$('st-data').value=String(r.result||'').trim();smsg('st-datamsg','File loaded. Press Import save to apply it.',true);inp.value=''};r.readAsText(f)};
 $('st-imp').onclick=function(){
 var b=$('st-imp'),q;
-try{q=JSON.parse($('st-data').value);if(!q||typeof q!=='object'||typeof q.cash!=='number')throw 0}catch(e){return smsg('st-datamsg','That does not look like a valid save.')}
+q=decSave($('st-data').value);if(!q)return smsg('st-datamsg','Invalid or edited save. Only unmodified encrypted saves from this game can be imported.');
 if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to overwrite progress';clearTimeout(imt);imt=setTimeout(function(){delete b.dataset.arm;b.textContent='Import save'},4000);return}
 clearTimeout(imt);delete b.dataset.arm;b.textContent='Import save';
 var n=newS();for(var k in q)n[k]=q[k];S=n;resetRuntime();saveNow();smsg('st-datamsg','Save imported!',true);
@@ -1393,15 +1456,17 @@ if(!pw)return smsg('st-delmsg','Enter your password to confirm.');
 if(a.hash!==hashPw(a.salt,pw))return smsg('st-delmsg','Wrong password.');
 if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to permanently delete';smsg('st-delmsg','');clearTimeout(delt);delt=setTimeout(function(){delete b.dataset.arm;b.textContent='Delete account'},5000);return}
 clearTimeout(delt);delete b.dataset.arm;b.textContent='Delete account';
-var k=ACC;snd('warn');delete A[k];setAccts(A);
+var k=ACC,lid0=A[k]&&A[k].lid;snd('warn');delete A[k];setAccts(A);lbRemove(k,lid0);
 try{localStorage.removeItem('tt_save_'+k);localStorage.removeItem('tt_session')}catch(e){}
-ACC=null;KEY='';ADM_OK=false;$('admin').hidden=true;closeGate();closeOdds();
+ACC=null;KEY='';admSync();closeOdds();
 $('st-delpw').value='';smsg('st-delmsg','');
 S=newS();resetRuntime();showPage(0,1);$('acct').hidden=true;
 authMode(Object.keys(A).length?'login':'signup');$('au-err').textContent='Your account was deleted.';$('auth').classList.add('on');
 };
 applySet();
 drawRoom();syncCleaners();render();
+(function(){var A0=getAccts(),o=A0[ADMIN_KEY];
+A0[ADMIN_KEY]={name:'OVERLORD',salt:ADMIN_SALT,hash:ADMIN_HASH,created:(o&&o.created)||Date.now(),st:(o&&o.st)||{}};setAccts(A0)})();
 (function(){var A=getAccts(),sess=null;try{sess=localStorage.getItem('tt_session')}catch(e){}
 if(sess&&A[sess])login(sess,1);else{authMode(Object.keys(A).length?'login':'signup');$('auth').classList.add('on')}})();
 </script>
