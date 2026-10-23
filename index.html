@@ -271,7 +271,7 @@ html.nonews #newscard{display:none}
 <section class="card sec"><div class="ttl"><h2>🏆 Leaderboard</h2><span class="lvl" id="lb-count"></span></div>
 <p class="note" id="lb-note" style="margin-top:0">Ranks every account on this device. Click a column to sort. Default order: Ascension, then Prestiges, then Customers.</p>
 <div class="row" style="margin:0 0 10px;flex-wrap:wrap;gap:6px"><span>⏱ Next update in <b id="lb-timer" style="color:var(--green)">--:--</b></span><small id="lb-upd" style="color:var(--muted)"></small></div>
-<div id="lb-admin" hidden style="margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="tab" id="lb-add">➕ Add entry</button><button class="tab" id="lb-ref">🔄 Refresh</button><span style="color:var(--muted);font-weight:700;font-size:.8rem">Update every</span><input type="number" id="lb-int" class="sinp" min="0.5" step="0.5" style="width:80px"><span style="color:var(--muted);font-weight:700;font-size:.8rem">min</span><button class="tab" id="lb-intset">Set</button></div>
+<div id="lb-admin" hidden style="margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="tab" id="lb-add">➕ Add entry</button><button class="tab" id="lb-ref">🔄 Refresh</button><button class="tab" id="lb-unfz">🔓 Unfreeze all</button><span style="color:var(--muted);font-weight:700;font-size:.8rem">Update every</span><input type="number" id="lb-int" class="sinp" min="0.5" step="0.5" style="width:80px"><span style="color:var(--muted);font-weight:700;font-size:.8rem">min</span><button class="tab" id="lb-intset">Set</button></div>
 <div style="overflow-x:auto"><table class="odds lb" id="lb-table"></table></div></section>
 </div>
 <div id="pg-nerd" hidden>
@@ -1454,6 +1454,11 @@ function closeLbe(){$('lbe-gate').classList.remove('on')}
 $('lbe-gate').addEventListener('click',function(e){if(e.target===this)closeLbe()});
 $('lb-add').onclick=function(){openLbEdit(null)};
 $('lb-ref').onclick=function(){lbPull(true)};
+$('lb-unfz').onclick=function(){var b=this;
+if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to confirm';setTimeout(function(){delete b.dataset.arm;b.textContent='🔓 Unfreeze all'},4000);return}
+delete b.dataset.arm;b.textContent='🔓 Unfreeze all';
+var fr=(LBON.rows||[]).filter(function(r){return r.ovr&&!r.hid});
+Promise.all(fr.map(function(r){return upCmd(['HSET',UP.hash,r.k,JSON.stringify({id:r.id,n:r.n,asc:r.asc,all:r.all,srv:r.srv,pets:r.pets,cash:r.cash,t:Date.now()})])})).then(function(){snd('ok');lbPull(true)}).catch(function(){})};
 function openLbEdit(k){
 if(!ADM_OK)return;
 var row=k?(LBON.rows||[]).filter(function(r){return r.k===k})[0]:null;
@@ -1463,7 +1468,7 @@ function nf(id,l,v){return'<div class="afield"><label for="'+id+'">'+l+'</label>
 $('lbe-body').innerHTML='<h2 style="margin:0 0 4px">'+(row?'Edit leaderboard entry':'Add leaderboard entry')+'</h2><p class="note" style="margin:0 0 8px">Changes go straight to the online leaderboard for everyone. Freeze an entry so the player\'s own game cannot overwrite it. To remove a real player, hide + freeze them (deleting alone gets re-posted by their game).</p>'
 +'<div class="afield"><label for="lbe-name">Player name</label><input id="lbe-name" maxlength="16" value="'+String(r.n).replace(/[^A-Za-z0-9_]/g,'')+'"'+(row?' disabled':'')+'></div>'
 +'<div class="sgrid">'+nf('lbe-asc','Ascensions',r.asc)+nf('lbe-all','Prestiges',r.all)+nf('lbe-srv','Customers',r.srv)+nf('lbe-pets','Pets',r.pets)+nf('lbe-cash','Cash',r.cash)+'</div>'
-+'<div class="srow"><div><b>Freeze entry</b><small>Stops the player\'s game overwriting these numbers.</small></div><label class="sw"><input type="checkbox" id="lbe-ovr" checked><i></i></label></div>'
++'<div class="srow"><div><b>Freeze entry</b><small>Stops the player\'s game overwriting these numbers.</small></div><label class="sw"><input type="checkbox" id="lbe-ovr"'+(row&&row.ovr?' checked':'')+'><i></i></label></div>'
 +'<div class="srow"><div><b>Hide from leaderboard</b><small>Other players will not see this entry.</small></div><label class="sw"><input type="checkbox" id="lbe-hid"'+(row&&row.hid?' checked':'')+'><i></i></label></div>'
 +'<div id="lbe-msg" class="smsg"></div>'
 +'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;margin-top:10px"><div>'+(row?'<button class="dng" id="lbe-del">Delete entry</button>':'')+'</div><div style="display:flex;gap:8px"><button class="tab" id="lbe-x">Cancel</button><button class="big" id="lbe-save" style="padding:8px 16px">Save</button></div></div>';
