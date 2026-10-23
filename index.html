@@ -1381,7 +1381,7 @@ var ie=$('lb-int');if(ie&&document.activeElement!==ie&&+ie.value!==LBON.int/60)i
 },1000);
 $('lb-intset').onclick=function(){setLbInt(+$('lb-int').value)};
 lbCfg();setInterval(lbCfg,60000);
-var LBSORT='asc',LBCOLS=[['asc','🌌 Ascension'],['tier','🏢 Tier'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
+var LBSORT='rank',LBORD=['asc','all','tier','srv','cash'],LBCOLS=[['asc','🌌 Ascension'],['tier','🏢 Tier'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
 function lbRender(){
 if(ACC)saveNow();
 if(!LBON.rows)lbPull();
@@ -1397,13 +1397,16 @@ rows=Object.keys(A).filter(function(k){return k!==ADMIN_KEY}).map(function(k){va
 if(!ADM_OK)rows=rows.filter(function(r){return!r.hid});
 var tc={};rows.forEach(function(r){if(!r.hid)tc[r.tier]=(tc[r.tier]||0)+1});
 $('lb-tiers').innerHTML=Object.keys(tc).sort(function(a,b){return b-a}).map(function(k2){return'<span class="chip on">🏢 Tier '+k2+' · <b>'+tc[k2]+'</b> player'+(tc[k2]===1?'':'s')+'</span>'}).join('');
-rows.sort(function(x,y){return(y[LBSORT]-x[LBSORT])||(y.asc-x.asc)||(y.all-x.all)||(y.srv-x.srv)||(y.cash-x.cash)});
-var h='<tr><th>#</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+(ADM_OK?'<th>🛡️</th>':'')+'</tr>';
+function cmpRank(x,y){for(var q=0;q<LBORD.length;q++){var d=(y[LBORD[q]]||0)-(x[LBORD[q]]||0);if(d)return d}return 0}
+var rk=rows.filter(function(r){return!r.hid}).sort(cmpRank),pl={};
+rk.forEach(function(r,i){pl[r.k]=i>0&&cmpRank(rk[i-1],r)===0?pl[rk[i-1].k]:i+1});
+rows.sort(function(x,y){return(LBSORT==='rank'?0:(y[LBSORT]||0)-(x[LBSORT]||0))||cmpRank(x,y)});
+var h='<tr><th data-sort="rank" class="'+(LBSORT==='rank'?'sorted':'')+'" title="Overall place">Place'+(LBSORT==='rank'?' ▼':'')+'</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+(ADM_OK?'<th>🛡️</th>':'')+'</tr>';
 rows.forEach(function(r,i){
-h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>T'+r.tier+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Entry</button> <button class="tab" data-lbp="'+encodeURIComponent(r.k)+'">🎮 Player</button></td>':'')+'</tr>'});
+h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(r.hid?'—':(['🥇','🥈','🥉'][pl[r.k]-1]||pl[r.k]))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>T'+r.tier+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Entry</button> <button class="tab" data-lbp="'+encodeURIComponent(r.k)+'">🎮 Player</button></td>':'')+'</tr>'});
 $('lb-table').innerHTML=h;
 $('lb-count').textContent=rows.length+' player'+(rows.length===1?'':'s');
-var note='🌐 Online leaderboard: ranks players from every device and refreshes every '+lbIntTxt()+'. Click a column to sort.';
+var note='🌐 Online leaderboard: ranks players from every device and refreshes every '+lbIntTxt()+'. Place is decided by: 1) Ascensions, 2) Prestiges, 3) Tier, 4) Customers served, 5) Cash. Players who tie on all five share a place. Click a column to re-sort the table (places stay the same).';
 if(!LBON.rows)note='Connecting to the online leaderboard… showing this device only for now.';
 if(LBON.err)note='⚠️ '+LBON.err+(LBON.rows?' Showing the last list we got.':' Showing this device only.');
 if(LBON.conflict)note+=' Another player already uses your username online, so your scores are not being posted. Make a new account with a different name.';
