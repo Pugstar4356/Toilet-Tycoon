@@ -196,10 +196,9 @@ html.nonews #newscard{display:none}
 </head>
 <body>
 <main>
-<div id="viewbar" hidden style="position:sticky;top:0;z-index:75;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#7b3fe4;color:#fff;font-weight:700;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span>👁 Viewing <b id="vb-name"></b> &middot; read-only copy, nothing you do here is saved</span><button class="tab" id="vb-exit" style="background:#fff;color:#4a1fa8">Exit view</button></div>
 <header>
 <div><h1>🚽 Toilet <span>Tycoon</span></h1><p class="tag">One tiny loo. One enormous bathroom empire.</p></div>
-<div class="hdr-r"><button class="big" id="tips">💸 Collect tips</button><div class="acct" id="acct" hidden><span id="acct-name"></span><button class="tab" id="logout">Log out</button></div></div>
+<div class="hdr-r"><button class="big" id="tips">💸 Collect tips</button><div class="acct" id="acct" hidden><span id="acct-name"></span><button class="tab" id="vb-exit" hidden>Exit view</button><button class="tab" id="logout">Log out</button></div></div>
 </header>
 <nav class="tabs pages"><button class="tab on" id="nav-game">🏢 Bathroom</button><button class="tab" id="nav-pets">🥚 Pets</button><button class="tab" id="nav-lb">🏆 Leaderboard <small id="lb-tmr" style="opacity:.75"></small></button><button class="tab" id="nav-nerd">🤓 Nerd stats</button><button class="tab" id="nav-set">⚙️ Settings</button></nav>
 <section class="stats">
@@ -1389,14 +1388,14 @@ var n=newS();for(var key in q)n[key]=q[key];
 var own=VIEW?VIEW.own:{S:S,KEY:KEY};
 VIEW={k:k,name:name,own:own};
 S=n;KEY='';
-$('vb-name').textContent=name+(t?' (saved '+agoTxt(t)+')':'');$('viewbar').hidden=false;
-$('acct-name').textContent='👁 '+name;
+$('vb-exit').hidden=false;
+$('acct-name').textContent='👁 '+name+(t?' · saved '+agoTxt(t):'');
 resetRuntime();showPage(0,1);snd('ok');
 }
 function viewEnd(){
 if(!VIEW)return;
 var own=VIEW.own;VIEW=null;
-S=own.S;KEY=own.KEY;$('viewbar').hidden=true;
+S=own.S;KEY=own.KEY;$('vb-exit').hidden=true;
 var a=getAccts()[ACC];$('acct-name').textContent='👤 '+(a?a.name:'');
 resetRuntime();var nl=$('nav-lb');showPage(0,1);if(nl)nl.click();
 }
