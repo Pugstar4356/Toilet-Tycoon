@@ -189,6 +189,9 @@ html.nonews #newscard{display:none}
 .alab{color:var(--muted);font-weight:800;font-size:.7rem;text-transform:uppercase;margin:14px 0 2px}.alab:first-of-type{margin-top:4px}
 .adm .hint{color:var(--muted);font-size:.8rem;margin:4px 0 8px}
 #adm-tabs{margin:0 0 14px}
+.nrow{padding:10px 0;border-bottom:1px solid var(--line)}.nrow:last-child{border:0}
+.nrow code{display:block;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:6px 0;font:12px monospace;white-space:pre-wrap;word-break:break-word}
+.nrow small{color:var(--muted);font-weight:700;font-size:.78rem;line-height:1.5;display:block}
 </style>
 </head>
 <body>
@@ -197,7 +200,7 @@ html.nonews #newscard{display:none}
 <div><h1>🚽 Toilet <span>Tycoon</span></h1><p class="tag">One tiny loo. One enormous bathroom empire.</p></div>
 <div class="hdr-r"><button class="big" id="tips">💸 Collect tips</button><div class="acct" id="acct" hidden><span id="acct-name"></span><button class="tab" id="logout">Log out</button></div></div>
 </header>
-<nav class="tabs pages"><button class="tab on" id="nav-game">🏢 Bathroom</button><button class="tab" id="nav-pets">🥚 Pets</button><button class="tab" id="nav-lb">🏆 Leaderboard <small id="lb-tmr" style="opacity:.75"></small></button><button class="tab" id="nav-set">⚙️ Settings</button></nav>
+<nav class="tabs pages"><button class="tab on" id="nav-game">🏢 Bathroom</button><button class="tab" id="nav-pets">🥚 Pets</button><button class="tab" id="nav-lb">🏆 Leaderboard <small id="lb-tmr" style="opacity:.75"></small></button><button class="tab" id="nav-nerd">🤓 Nerd stats</button><button class="tab" id="nav-set">⚙️ Settings</button></nav>
 <section class="stats">
 <div class="card stat"><small>💰 Cash</small><b id="cash"></b></div>
 <div class="card stat"><small>👥 Customers served</small><b id="served"></b></div>
@@ -269,18 +272,24 @@ html.nonews #newscard{display:none}
 <p class="note" id="lb-note" style="margin-top:0">Ranks every account on this device. Click a column to sort. Default order: Ascension, then Prestiges, then Customers.</p>
 <div class="row" style="margin:0 0 10px;flex-wrap:wrap;gap:6px"><span>⏱ Next update in <b id="lb-timer" style="color:var(--green)">--:--</b></span><small id="lb-upd" style="color:var(--muted)"></small></div>
 <div id="lb-admin" hidden style="margin:0 0 10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="tab" id="lb-add">➕ Add entry</button><button class="tab" id="lb-ref">🔄 Refresh</button><span style="color:var(--muted);font-weight:700;font-size:.8rem">Update every</span><input type="number" id="lb-int" class="sinp" min="0.5" step="0.5" style="width:80px"><span style="color:var(--muted);font-weight:700;font-size:.8rem">min</span><button class="tab" id="lb-intset">Set</button></div>
+<div class="chips" id="lb-tiers" style="margin:0 0 10px"></div>
 <div style="overflow-x:auto"><table class="odds lb" id="lb-table"></table></div></section>
 </div>
+<div id="pg-nerd" hidden>
+<section class="card sec"><div class="ttl"><h2>🤓 Nerd stats</h2><span class="lvl">Live numbers from your game</span></div><p class="note" style="margin:0">Every formula the game uses, with your current values plugged in. Updates every second.</p></section>
+<div id="nerd-body"></div></div>
 <div id="pg-pets" hidden>
-<section class="card sec"><div class="ttl"><h2>🐾 Active pet boosts</h2><span class="lvl" id="pet-slots"></span></div><div class="chips" id="pet-boosts"></div><div class="reveal" id="reveal"></div></section>
-<section class="card sec"><div class="ttl"><h2>🔥 Incubator</h2><span class="lvl" id="inc-slots"></span></div><div class="pgrid" id="pet-inc"></div></section>
-<section class="card sec"><div class="ttl"><h2>⚙️ Incubator upgrades</h2></div>
+<nav class="tabs" id="pet-tabs"><button class="tab on" data-ptab="hatch">🥚 Hatchery</button><button class="tab" data-ptab="pets">🐶 Pets</button><button class="tab" data-ptab="eq">⭐ Equipped</button></nav>
+<section class="card sec" data-pt="eq"><div class="ttl"><h2>🐾 Active pet boosts</h2><span class="lvl" id="pet-slots"></span></div><div class="chips" id="pet-boosts"></div></section>
+<section class="card sec" data-pt="eq"><div class="ttl"><h2>⭐ Equipped pets</h2><span class="lvl" id="eq-count"></span></div><div class="pgrid" id="pet-eqd"></div></section>
+<section class="card sec" data-pt="hatch"><div class="ttl"><h2>🔥 Incubator</h2><span class="lvl" id="inc-slots"></span></div><div class="pgrid" id="pet-inc"></div><div class="reveal" id="reveal"></div></section>
+<section class="card sec" data-pt="hatch"><div class="ttl"><h2>⚙️ Incubator upgrades</h2></div>
 <div class="shop"><div class="ico">🔥</div><div><b id="up-slot-nm"></b><small id="up-slot-ds"></small></div><button class="buy" data-pa="upslot" id="up-slot"></button></div>
 <div class="shop"><div class="ico">⚡</div><div><b id="up-spd-nm"></b><small id="up-spd-ds"></small></div><button class="buy" data-pa="upspd" id="up-spd"></button></div>
 <div class="shop"><div class="ico">🐾</div><div><b id="up-eq-nm"></b><small id="up-eq-ds"></small></div><button class="buy" data-pa="upeq" id="up-eq"></button></div>
 <div class="shop"><div class="ico">📦</div><div><b id="up-sto-nm"></b><small id="up-sto-ds"></small></div><button class="buy" data-pa="upsto" id="up-sto"></button></div></section>
-<section class="card sec"><div class="ttl"><h2>🥚 Egg shop</h2><span class="lvl">Egg tier matches room tier</span></div><p class="note" style="margin-top:0">Base odds: Common 60% · Rare 28% · Epic 10% · Legendary 2%. Higher tier eggs give stronger pets. 🍀 Each egg tier has its own Luck upgrade that improves its rarity odds (secret pets are never affected by luck). 🌟 Secret pets are insanely rare from Tier 1 eggs and get easier to find with every egg tier. Pets survive prestige but are lost when you ascend.</p><div class="pgrid" id="pet-shop"></div></section>
-<section class="card sec"><div class="ttl"><h2>🐶 Your pets</h2><span class="lvl" id="inv-count"></span></div><div class="pgrid" id="pet-inv"></div></section>
+<section class="card sec" data-pt="hatch"><div class="ttl"><h2>🥚 Egg shop</h2><span class="lvl">Egg tier matches room tier</span></div><p class="note" style="margin-top:0">Base odds: Common 60% · Rare 28% · Epic 10% · Legendary 2%. Higher tier eggs give stronger pets. 🍀 Each egg tier has its own Luck upgrade that improves its rarity odds (secret pets are never affected by luck). 🌟 Secret pets are insanely rare from Tier 1 eggs and get easier to find with every egg tier. Pets survive prestige but are lost when you ascend.</p><div class="pgrid" id="pet-shop"></div></section>
+<section class="card sec" data-pt="pets"><div class="ttl"><h2>🐶 Your pets</h2><span class="lvl" id="inv-count"></span></div><div class="pgrid" id="pet-inv"></div></section>
 </div>
 <section class="card" id="admin" hidden style="margin-top:16px">
 <div class="ttl"><h2>🛡️ Admin panel</h2><span class="lvl">Cheats &amp; debug · Ctrl+Shift+A</span></div>
@@ -1022,8 +1031,9 @@ var vk=P.inv.map(function(p){return p.id+(p.lock?'L':'')}).join(',')+'|'+P.eq.jo
 if(PK.v!==vk){PK.v=vk;
 var eqs=P.eq.map(petOf).filter(Boolean),rest=P.inv.filter(function(p){return P.eq.indexOf(p.id)<0}).sort(function(a,b){return b.r-a.r||b.t-a.t});
 var gs={},go=[];rest.forEach(function(p){var k=gkey(p);if(!gs[k]){gs[k]={p:p,n:0};go.push(k)}gs[k].n++});
-h=eqs.map(function(p){return petCard(p,true)}).join('')+go.map(function(k){return petCard(gs[k].p,false,gs[k].n)}).join('');
-$('pet-inv').innerHTML=h||'<p class="note" style="grid-column:1/-1;margin:0">No pets yet. Buy an egg and hatch your first one!</p>'}
+var eqh=eqs.map(function(p){return petCard(p,true)}).join('');h=go.map(function(k){return petCard(gs[k].p,false,gs[k].n)}).join('');
+$('pet-eqd').innerHTML=eqh||'<p class="note" style="grid-column:1/-1;margin:0">No pets equipped. Equip some from the Pets tab.</p>';$('eq-count').textContent=P.eq.length+' / '+es+' slots';
+$('pet-inv').innerHTML=h||'<p class="note" style="grid-column:1/-1;margin:0">'+(P.inv.length?'All of your pets are equipped.':'No pets yet. Buy an egg in the Hatchery and hatch your first one!')+'</p>'}
 $('inv-count').textContent=P.inv.length+' / '+stoCap()+' pets';
 }
 $('pg-pets').addEventListener('click',function(e){
@@ -1061,16 +1071,75 @@ $('rel-gate').classList.add('on');snd('open');relSync();
 }
 function closeRel(){if($('rel-gate').classList.contains('on'))snd('close');$('rel-gate').classList.remove('on');REL=null}
 $('rel-gate').addEventListener('click',function(e){if(e.target===this)closeRel()});
+var PTAB='hatch';
+function ptabApply(){document.querySelectorAll('#pg-pets [data-pt]').forEach(function(el){el.hidden=el.dataset.pt!==PTAB});document.querySelectorAll('#pet-tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.ptab===PTAB)})}
+function nrm(x,d){x=Number(x);if(!isFinite(x))return'0';return String(parseFloat(x.toFixed(d===undefined?3:d)))}
+function nerdRender(){
+var P=PT(),A=S.p.asc||0,t=S.tier,m=tm(),mu=mult();
+var q1=[
+['Money multiplier (pm)','pm = 2^moneyLvl × (1 + moneyPetBoost) × (1 + ascensions)','2^'+PL('money')+' × (1 + '+nrm(PB('money'))+') × (1 + '+A+') = '+nrm(pm())],
+['Income multiplier','mult = golden(×2) × (0.2 + 0.8 × clean/100) × pm × frenzy(×3)',(S.golden?2:1)+' × '+nrm(0.2+0.8*S.clean/100)+' × '+nrm(pm())+' × '+(gbOn()?3:1)+' = '+nrm(mu)],
+['Income per customer','income = fee × mult × vipMult',fmt(S.fee)+' × '+nrm(mu)+' = '+fmt(S.fee*mu)+' (VIPs pay x2 to x10)'],
+['Customers per minute','cpm = toilets × 0.2 × (1 + 0.25 × expansions) × (1 + 0.3 × toiletLvl) × (1 + speedPetBoost) × frenzy(×2) × 60',S.toilets+' × 0.2 × (1 + '+nrm(0.25*S.exp)+') × (1 + '+nrm(0.3*PL('toilet'))+') × (1 + '+nrm(PB('speed'))+') × '+(gbOn()?2:1)+' × 60 = '+nrm(rate()*60,2)],
+['Income per minute','incomePerMin = cpm × fee × mult',nrm(rate()*60,2)+' × '+fmt(S.fee)+' × '+nrm(mu)+' = '+fmt(rate()*60*S.fee*mu)],
+['Tips per customer','tips = fee × 0.5 × vipMult × pm × (1 + tipsPetBoost)',fmt(S.fee*0.5*pm()*(1+PB('tips')))+' for a normal customer'],
+['Cleaning reward','reward = fee × 2 × pm',fmt(S.fee*2*pm())+' per mess you click']
+];
+var q2=[
+['Cleanliness','clean = max(0, 100 - 12 × messes)','100 - 12 × '+messes+' = '+Math.round(S.clean)+'%'],
+['Mess chance per customer','chance = 0.5 × 0.7^coatingLvl × 0.8^messGuardLvl × (1 - messPetBoost)','0.5 × 0.7^'+S.ml+' × 0.8^'+PL('mess')+' × (1 - '+nrm(PB('mess'))+') = '+pc(mchance(S.ml))],
+['Angry mess','A mess ignored for 8s turns angry and hits a customer every 2.5s. Cash lost per hit = fee × 2','Currently '+fmt(Math.round(S.fee*2))+' per hit'],
+['Cleaners','Each cleaner mops about one mess every ~3.6s. Golden messes cannot be mopped.',S.cl+' cleaner'+(S.cl===1?'':'s')+' = about '+nrm(S.cl/3.6*60,1)+' messes per minute']
+];
+var q3=[
+['Tier scaling','tierMul = 12^tier  |  baseFee = 5 × 5^tier  |  feeStep = round(0.4 × baseFee)','Tier '+(t+1)+': x'+TMUL[t].toLocaleString()+' | base fee '+fmt(FEEB[t])+' | step '+fmt(step())],
+['Extra toilet','cost = round(55 × 2.2^(toilets - 1) × tierMul)',fmt(Math.round(55*Math.pow(2.2,S.toilets-1)*m))+' for the next one'],
+['Raise the fee','cost = round(75 × 1.8^feeLvl × tierMul)',fmt(Math.round(75*Math.pow(1.8,S.fl)*m))+' for the next raise'],
+['Anti-mess coating','cost = round(120 × 2^coatingLvl × tierMul)',fmt(Math.round(120*Math.pow(2,S.ml)*m))+' for the next level'],
+['Bathroom expansion','cost = round(250 × 2^expansions × tierMul)  (+25% customers each)',fmt(Math.round(250*Math.pow(2,S.exp)*m))+' for the next level'],
+['Hire a cleaner','cost = round(180 × 3^cleaners × tierMul)',fmt(Math.round(180*Math.pow(3,S.cl)*m))+' for the next cleaner'],
+['Golden toilet','cost = 2500 × tierMul  (doubles visit income)',fmt(2500*m)],
+['Unlock next tier','cost = round(all upgrade costs in this room + 2500 × tierMul, to the nearest 1,000)',t<9?fmt(tierCost(t)):'Top tier reached'],
+['Room goal','goal = round(baseGoal × (1 - 0.25 × fastTrackLvl))','Base '+GOAL[t]+' becomes '+goal(t)+' customers']
+];
+var q4=[
+['Prestige reward','10 points once every upgrade in all 10 tiers is maxed and all tiers are unlocked',pgain()?'Ready: +10 points':totalLeft()+' purchases left'],
+['Prestige upgrade costs','money 10×3^L | mess guard 8×2^L | toilets 12×2^L | VIP 10×2^L | head start 6×3^L | fast track 10×2^L',PSH.map(function(it){var l=PL(it.id);return it.name+': '+(l>=it.max?'maxed':it.cost(l)+' pts')}).join(' | ')],
+['Ascension requirement','prestigesNeeded = 10 + ascensions',S.p.runs+' / '+ascNeed()+' prestiges'],
+['Ascension bonus','cashMultiplier = 1 + ascensions','x'+(1+A)+' now, x'+(2+A)+' after the next ascension'],
+['Head start cash','startCash = [0, 300, 3000, 30000][headStartLvl]',fmt(START[PL('head')])+' at the start of each run']
+];
+var q5=[
+['Pet boost','boost = baseBoost × (1 + 0.45 × petTier) × rarityMult  |  base: money 15%, customers 15%, tips 25%, messes 3%, VIP 4%  |  rarity: Common x1, Rare x2, Epic x3.5, Legendary x6  |  caps: messes 60%, VIP 50%','A Legendary tier '+(t+1)+' money pet gives +'+pctx(petVal({t:t,r:3,ty:'money'}))+'%'],
+['Rarity odds','weight = [Common 60, Rare 28 × luck, Epic 10 × luck, Legendary 2 × luck]  |  luck = 1 + 0.3 × luckLvl (per egg tier)','Tier '+(t+1)+' eggs (luck x'+nrm(lkMul(t),1)+'): '+rarProbs(t).map(function(x,i){return RAR[i]+' '+fp(x)+'%'}).join(' | ')],
+['Secret pet chance','A fixed chance per egg tier that luck never changes. Higher tiers are easier.',SEC_TIER.map(function(x,i){return'T'+(i+1)+': '+oneIn(x*100)}).join(' | ')],
+['Egg cost','cost = 400 × 12^tier',fmt(eggBase(t))+' for a tier '+(t+1)+' egg'],
+['Hatch time','seconds = (30 + 15 × tier) / (1 + 0.3 × speedLvl)',fmtT(hatchSec(t))+' for a tier '+(t+1)+' egg'],
+['Slots & storage','incubator = 2 + upgrades  |  equip = 2 + upgrades  |  storage = 100 + 180 × storageLvl','Incubator '+incSlots()+' | Equip '+eqSlots()+' | Storage '+stoCap()],
+['Release value','value = eggCost(petTier) × [Common 0.1, Rare 0.3, Epic 0.8, Legendary 2]. Secret pets release for $0.','A Legendary tier '+(t+1)+' pet sells for '+fmt(Math.round(eggBase(t)*2))]
+];
+var q6=[
+['VIP chance','chance = min(90%, 12% + 4% × vipLvl + vipPetBoost). VIPs pay a random x2 to x10.',pc(Math.min(0.9,0.12+0.04*PL('vip')+PB('vip')))],
+['Golden mess spawn','Each second there is a 1 in '+GOLDEVERY+' chance (about once every '+Math.round(GOLDEVERY/60)+' min). Only one at a time, and it vanishes after '+GOLDLIFE/1000+'s.',room.querySelector('.mess.gold')?'One is on screen right now!':'None on screen'],
+['Golden frenzy','Clicking adds +30s of x3 money and x2 customers. It stacks up to 5 minutes.',gbOn()?Math.ceil((S.gb-Date.now())/1000)+'s left':'Not active'],
+['Leaderboard timer','nextUpdate = (floor(serverTime / interval) + 1) × interval','Every '+lbIntTxt()+' | next in '+fmtClock(Math.ceil((lbNext()-lbNow())/1000))]
+];
+var secs=[['💰 Money & customers',q1],['🧼 Messes & cleanliness',q2],['🛠️ Upgrades & tiers',q3],['⭐ Prestige & ascension',q4],['🐾 Pets & eggs',q5],['✨ VIPs, golden messes & leaderboard',q6]];
+$('nerd-body').innerHTML=secs.map(function(s){return'<section class="card sec"><div class="ttl"><h2>'+s[0]+'</h2></div>'+s[1].map(function(r){return'<div class="nrow"><b>'+r[0]+'</b><code>'+r[1]+'</code><small>Now: '+r[2]+'</small></div>'}).join('')+'</section>'}).join('');
+}
 function showPage(n,quiet){
 if(!quiet)snd('nav');
-$('pg-game').hidden=n!==0;$('pg-pets').hidden=n!==1;$('pg-lb').hidden=n!==2;$('pg-set').hidden=n!==3;
-$('nav-game').classList.toggle('on',n===0);$('nav-pets').classList.toggle('on',n===1);$('nav-lb').classList.toggle('on',n===2);$('nav-set').classList.toggle('on',n===3);
-if(n===1){PK={};petsRender()}
+$('pg-game').hidden=n!==0;$('pg-pets').hidden=n!==1;$('pg-lb').hidden=n!==2;$('pg-set').hidden=n!==3;$('pg-nerd').hidden=n!==4;
+$('nav-game').classList.toggle('on',n===0);$('nav-pets').classList.toggle('on',n===1);$('nav-lb').classList.toggle('on',n===2);$('nav-set').classList.toggle('on',n===3);$('nav-nerd').classList.toggle('on',n===4);
+if(n===1){PK={};ptabApply();petsRender()}
+if(n===4)nerdRender();
 if(n===2)lbRender();
 if(n===3)setRender();
 }
 $('odds-close').onclick=closeOdds;$('odds-gate').addEventListener('click',function(e){if(e.target===this)closeOdds()});document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOdds();closeRel();closeLbe()}});
-$('nav-game').onclick=function(){showPage(0)};$('nav-pets').onclick=function(){showPage(1)};$('nav-lb').onclick=function(){showPage(2)};$('nav-set').onclick=function(){showPage(3)};
+$('nav-game').onclick=function(){showPage(0)};$('nav-pets').onclick=function(){showPage(1)};$('nav-lb').onclick=function(){showPage(2)};$('nav-set').onclick=function(){showPage(3)};$('nav-nerd').onclick=function(){showPage(4)};
+$('pet-tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-ptab]');if(!b)return;PTAB=b.dataset.ptab;ptabApply()});
+setInterval(function(){if(!$('pg-nerd').hidden)nerdRender()},1000);
 var gbWas=false;
 setInterval(function(){var r=(S.gb||0)-Date.now(),g=$('gbuff');if(r>0)gbWas=true;else if(gbWas){gbWas=false;snd('frenzyEnd')}if(r>0){g.hidden=false;g.innerHTML='✨ Golden frenzy<br>×3 💰 · ×2 👥 · '+Math.ceil(r/1000)+'s'}else g.hidden=true},250);
 setInterval(function(){if(!$('pg-pets').hidden)petsRender()},250);
@@ -1184,7 +1253,7 @@ if(!ACC)return;
 try{
 localStorage.setItem(KEY,JSON.stringify(S));LASTSAVE=Date.now();
 var A=getAccts();
-if(A[ACC]){var P=PT();A[ACC].st={asc:S.p.asc||0,all:S.p.all||0,srv:Math.max(S.p.srv||0,S.served||0),pets:P.inv.length,cash:S.cash,t:Date.now()};setAccts(A)}
+if(A[ACC]){var P=PT();A[ACC].st={tier:(S.unlocked||0)+1,asc:S.p.asc||0,all:S.p.all||0,srv:Math.max(S.p.srv||0,S.served||0),pets:P.inv.length,cash:S.cash,t:Date.now()};setAccts(A)}
 }catch(e){}
 }
 window.addEventListener('beforeunload',function(){saveNow()});
@@ -1203,7 +1272,7 @@ try{localStorage.setItem('tt_session',k)}catch(e){}
 $('acct-name').textContent='👤 '+A[k].name;$('acct').hidden=false;
 $('au-user').value='';$('au-pw').value='';$('au-pw2').value='';$('au-err').textContent='';
 $('auth').classList.remove('on');
-if(!quiet)snd('login');resetRuntime();showPage(0,1);setTimeout(function(){lbPush(1)},800);
+if(!quiet)snd('login');resetRuntime();showPage(0,1);setTimeout(function(){lbPush(1)},800);setTimeout(edPoll,2500);
 }
 function logout(){
 snd('logout');saveNow();
@@ -1270,7 +1339,7 @@ if(cur&&cur.id&&cur.id!==lid){LBON.conflict=true;return false}
 LBON.conflict=false;LBON.owned=me+':'+lid;if(cur&&cur.ovr){LBON.sig=sig;LBON.sigAt=now;return false}return true});
 check.then(function(ok){
 if(!ok)return;
-return upCmd(['HSET',UP.hash,me,JSON.stringify({id:lid,n:a.name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:Math.floor(st.cash||0),t:now})]).then(function(){LBON.sig=sig;LBON.sigAt=now;LBON.err=''})
+return upCmd(['HSET',UP.hash,me,JSON.stringify({id:lid,n:a.name,tier:st.tier||1,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:Math.floor(st.cash||0),t:now})]).then(function(){LBON.sig=sig;LBON.sigAt=now;LBON.err=''})
 }).catch(function(){LBON.err='Could not reach the online leaderboard.'})}
 function lbRemove(k,lid){
 upCmd(['HGET',UP.hash,k]).then(function(v){var cur=null;try{cur=v?JSON.parse(v):null}catch(e){}
@@ -1284,7 +1353,7 @@ for(var i=0;r&&i+1<r.length;i+=2){
 var v=null;try{v=JSON.parse(r[i+1])}catch(e){}
 if(!v||r[i]===ADMIN_KEY)continue;
 function num(x){x=Number(x);return isFinite(x)&&x>0?x:0}
-rows.push({k:String(r[i]),n:String(v.n||r[i]).replace(/[^A-Za-z0-9_]/g,'').slice(0,16)||'player',asc:num(v.asc),all:num(v.all),srv:num(v.srv),pets:num(v.pets),cash:num(v.cash),id:String(v.id||''),ovr:v.ovr?1:0,hid:v.hid?1:0})}
+rows.push({k:String(r[i]),n:String(v.n||r[i]).replace(/[^A-Za-z0-9_]/g,'').slice(0,16)||'player',asc:num(v.asc),tier:Math.max(1,Math.min(10,num(v.tier)||1)),all:num(v.all),srv:num(v.srv),pets:num(v.pets),cash:num(v.cash),id:String(v.id||''),ovr:v.ovr?1:0,hid:v.hid?1:0})}
 LBON.rows=rows;LBON.err='';LBON.last=Date.now();LBON.upd=Date.now()
 }).catch(function(){LBON.err='Could not reach the online leaderboard.';LBON.last=Date.now()})
 .then(function(){LBON.busy=false;if(!$('pg-lb').hidden)lbRender()})}
@@ -1312,7 +1381,7 @@ var ie=$('lb-int');if(ie&&document.activeElement!==ie&&+ie.value!==LBON.int/60)i
 },1000);
 $('lb-intset').onclick=function(){setLbInt(+$('lb-int').value)};
 lbCfg();setInterval(lbCfg,60000);
-var LBSORT='asc',LBCOLS=[['asc','🌌 Ascension'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
+var LBSORT='asc',LBCOLS=[['asc','🌌 Ascension'],['tier','🏢 Tier'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
 function lbRender(){
 if(ACC)saveNow();
 if(!LBON.rows)lbPull();
@@ -1321,15 +1390,17 @@ if(LBON.rows){
 var mine=LBON.rows.filter(function(r){return r.k===MEK})[0];
 rows=LBON.rows.filter(function(r){return r.k!==MEK});
 if(mine)rows.push(mine);
-else if(MEK&&MEK!==ADMIN_KEY&&A[MEK]&&!LBON.conflict){var st=A[MEK].st||{};rows.push({k:MEK,n:A[MEK].name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0})}
+else if(MEK&&MEK!==ADMIN_KEY&&A[MEK]&&!LBON.conflict){var st=A[MEK].st||{};rows.push({k:MEK,n:A[MEK].name,tier:st.tier||1,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0})}
 else if(MEK&&A[MEK]&&LBON.conflict){var o=LBON.rows.filter(function(r){return r.k===MEK})[0];if(o)rows.push(o)}
 }else{
-rows=Object.keys(A).filter(function(k){return k!==ADMIN_KEY}).map(function(k){var a=A[k],st=a.st||{};return{k:k,n:a.name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0}})}
+rows=Object.keys(A).filter(function(k){return k!==ADMIN_KEY}).map(function(k){var a=A[k],st=a.st||{};return{k:k,n:a.name,tier:st.tier||1,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0}})}
 if(!ADM_OK)rows=rows.filter(function(r){return!r.hid});
+var tc={};rows.forEach(function(r){if(!r.hid)tc[r.tier]=(tc[r.tier]||0)+1});
+$('lb-tiers').innerHTML=Object.keys(tc).sort(function(a,b){return b-a}).map(function(k2){return'<span class="chip on">🏢 Tier '+k2+' · <b>'+tc[k2]+'</b> player'+(tc[k2]===1?'':'s')+'</span>'}).join('');
 rows.sort(function(x,y){return(y[LBSORT]-x[LBSORT])||(y.asc-x.asc)||(y.all-x.all)||(y.srv-x.srv)||(y.cash-x.cash)});
 var h='<tr><th>#</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+(ADM_OK?'<th>🛡️</th>':'')+'</tr>';
 rows.forEach(function(r,i){
-h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Edit</button></td>':'')+'</tr>'});
+h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>T'+r.tier+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Entry</button> <button class="tab" data-lbp="'+encodeURIComponent(r.k)+'">🎮 Player</button></td>':'')+'</tr>'});
 $('lb-table').innerHTML=h;
 $('lb-count').textContent=rows.length+' player'+(rows.length===1?'':'s');
 var note='🌐 Online leaderboard: ranks players from every device and refreshes every '+lbIntTxt()+'. Click a column to sort.';
@@ -1337,7 +1408,48 @@ if(!LBON.rows)note='Connecting to the online leaderboard… showing this device 
 if(LBON.err)note='⚠️ '+LBON.err+(LBON.rows?' Showing the last list we got.':' Showing this device only.');
 if(LBON.conflict)note+=' Another player already uses your username online, so your scores are not being posted. Make a new account with a different name.';
 $('lb-note').textContent=note}
-$('lb-table').addEventListener('click',function(e){var eb=e.target.closest('button[data-lbe]');if(eb){openLbEdit(decodeURIComponent(eb.dataset.lbe));return}var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
+$('lb-table').addEventListener('click',function(e){var eb=e.target.closest('button[data-lbe]');if(eb){openLbEdit(decodeURIComponent(eb.dataset.lbe));return}var pb=e.target.closest('button[data-lbp]');if(pb){openPlEdit(decodeURIComponent(pb.dataset.lbp));return}var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
+var EDK='tt:edits';
+function openPlEdit(k){
+if(!ADM_OK)return;
+var row=(LBON.rows||[]).filter(function(r){return r.k===k})[0];if(!row)return;
+function nf2(id,l,ph){return'<div class="afield"><label for="'+id+'">'+l+'</label><input type="number" min="0" id="'+id+'" placeholder="'+ph+'"></div>'}
+$('lbe-body').innerHTML='<h2 style="margin:0 0 4px">🎮 Edit player: '+row.n+'</h2><p class="note" style="margin:0 0 8px">Changes the stats inside that player game. It applies within about 20 seconds if they are online, or when they next log in. Leave a box empty to leave that stat alone.</p>'
++'<div class="afield"><label for="ple-mode">Mode</label><select id="ple-mode" class="sinp" style="width:100%"><option value="set">Set to this value</option><option value="add">Add to their current value</option></select></div>'
++'<div class="sgrid">'+nf2('ple-cash','Cash',Math.floor(row.cash))+nf2('ple-srv','Customers served',row.srv)+nf2('ple-pts','Prestige points','points')+nf2('ple-runs','Prestiges (toward ascension)','count')+nf2('ple-all','Lifetime prestiges',row.all)+nf2('ple-asc','Ascensions',row.asc)+nf2('ple-tier','Highest tier unlocked (1-10)',row.tier)+'</div>'
++'<div id="lbe-msg" class="smsg"></div>'
++'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="tab" id="lbe-x">Cancel</button><button class="big" id="ple-send" style="padding:8px 16px">Send to player</button></div>';
+$('lbe-x').onclick=closeLbe;
+$('ple-send').onclick=function(){
+var f={},any=false;
+[['cash','ple-cash'],['srv','ple-srv'],['pts','ple-pts'],['runs','ple-runs'],['all','ple-all'],['asc','ple-asc'],['tier','ple-tier']].forEach(function(p){var raw=$(p[1]).value;if(raw==='')return;var v=Math.floor(+raw);if(isFinite(v)&&v>=0){f[p[0]]=v;any=true}});
+if(!any)return smsg('lbe-msg','Fill in at least one box.');
+var obj={id:row.id,m:$('ple-mode').value,f:f,t:Date.now()};
+upCmd(['HSET',EDK,k,JSON.stringify(obj)]).then(function(){smsg('lbe-msg','Sent! It applies the next time that player game checks in.',true)}).catch(function(){smsg('lbe-msg','Could not reach the online server.')})};
+$('lbe-gate').classList.add('on');snd('open');
+}
+function applyEdit(e){
+var f=e.f||{},add=e.m==='add',P=S.p;
+function nv(cur,v){v=Number(v);if(!isFinite(v))return cur;return Math.max(0,Math.floor(add?(Number(cur)||0)+v:v))}
+if(f.cash!=null)S.cash=nv(S.cash,f.cash);
+if(f.srv!=null){var ns=nv(S.served,f.srv);P.srv=add?(P.srv||0)+(ns-S.served):ns;S.served=ns}
+if(f.pts!=null)P.pts=nv(P.pts,f.pts);
+if(f.runs!=null)P.runs=nv(P.runs,f.runs);
+if(f.all!=null)P.all=nv(P.all||0,f.all);
+if(f.asc!=null)P.asc=nv(P.asc||0,f.asc);
+if(f.tier!=null){var nt=Math.max(1,Math.min(10,Math.floor(add?S.unlocked+1+Number(f.tier):Number(f.tier))))-1;if(S.tier>nt)swap(nt);S.unlocked=nt}
+tabKey='';roomBG.k='';drawRoom();syncCleaners();PK={};render();if(!$('pg-pets').hidden)petsRender();
+news('🛡️ The Overlord adjusted your stats.');snd('ok');saveNow();lbPush(1);
+}
+function edPoll(){
+if(!ACC||ACC===ADMIN_KEY)return;
+var me=ACC;
+upCmd(['HGET',EDK,me]).then(function(v){
+if(!v||ACC!==me)return;var e=null;try{e=JSON.parse(v)}catch(x){}
+return upCmd(['HDEL',EDK,me]).then(function(n){
+var lid=(getAccts()[me]||{}).lid;
+if(n===1&&e&&(!e.id||e.id===lid)&&ACC===me)applyEdit(e)})}).catch(function(){})}
+setInterval(edPoll,20000);
 function closeLbe(){$('lbe-gate').classList.remove('on')}
 $('lbe-gate').addEventListener('click',function(e){if(e.target===this)closeLbe()});
 $('lb-add').onclick=function(){openLbEdit(null)};
@@ -1346,11 +1458,11 @@ function openLbEdit(k){
 if(!ADM_OK)return;
 var row=k?(LBON.rows||[]).filter(function(r){return r.k===k})[0]:null;
 if(k&&!row)return;
-var r=row||{n:'',asc:0,all:0,srv:0,pets:0,cash:0,id:''};
+var r=row||{n:'',tier:1,asc:0,all:0,srv:0,pets:0,cash:0,id:''};
 function nf(id,l,v){return'<div class="afield"><label for="'+id+'">'+l+'</label><input type="number" min="0" id="'+id+'" value="'+Math.floor(v)+'"></div>'}
 $('lbe-body').innerHTML='<h2 style="margin:0 0 4px">'+(row?'Edit leaderboard entry':'Add leaderboard entry')+'</h2><p class="note" style="margin:0 0 8px">Changes go straight to the online leaderboard for everyone. Freeze an entry so the player\'s own game cannot overwrite it. To remove a real player, hide + freeze them (deleting alone gets re-posted by their game).</p>'
 +'<div class="afield"><label for="lbe-name">Player name</label><input id="lbe-name" maxlength="16" value="'+String(r.n).replace(/[^A-Za-z0-9_]/g,'')+'"'+(row?' disabled':'')+'></div>'
-+'<div class="sgrid">'+nf('lbe-asc','Ascensions',r.asc)+nf('lbe-all','Prestiges',r.all)+nf('lbe-srv','Customers',r.srv)+nf('lbe-pets','Pets',r.pets)+nf('lbe-cash','Cash',r.cash)+'</div>'
++'<div class="sgrid">'+nf('lbe-tier','Tier (1-10)',r.tier||1)+nf('lbe-asc','Ascensions',r.asc)+nf('lbe-all','Prestiges',r.all)+nf('lbe-srv','Customers',r.srv)+nf('lbe-pets','Pets',r.pets)+nf('lbe-cash','Cash',r.cash)+'</div>'
 +'<div class="srow"><div><b>Freeze entry</b><small>Stops the player\'s game overwriting these numbers.</small></div><label class="sw"><input type="checkbox" id="lbe-ovr" checked><i></i></label></div>'
 +'<div class="srow"><div><b>Hide from leaderboard</b><small>Other players will not see this entry.</small></div><label class="sw"><input type="checkbox" id="lbe-hid"'+(row&&row.hid?' checked':'')+'><i></i></label></div>'
 +'<div id="lbe-msg" class="smsg"></div>'
@@ -1362,7 +1474,7 @@ if(!/^[A-Za-z0-9_]{3,16}$/.test(nm))return smsg('lbe-msg','Name must be 3-16 let
 var key=row?k:nm.toLowerCase();
 if(!row&&(key===ADMIN_KEY||(LBON.rows||[]).some(function(q){return q.k===key})))return smsg('lbe-msg','That name already has an entry. Edit it instead.');
 function g(id){var v=Math.floor(+$(id).value);return isFinite(v)&&v>0?v:0}
-var obj={id:row?row.id:rndHex(),n:row?row.n:nm,asc:g('lbe-asc'),all:g('lbe-all'),srv:g('lbe-srv'),pets:g('lbe-pets'),cash:g('lbe-cash'),t:Date.now()};
+var obj={id:row?row.id:rndHex(),n:row?row.n:nm,asc:g('lbe-asc'),tier:Math.max(1,Math.min(10,g('lbe-tier')||1)),all:g('lbe-all'),srv:g('lbe-srv'),pets:g('lbe-pets'),cash:g('lbe-cash'),t:Date.now()};
 if($('lbe-ovr').checked)obj.ovr=1;
 if($('lbe-hid').checked){obj.hid=1;obj.ovr=1}
 upCmd(['HSET',UP.hash,key,JSON.stringify(obj)]).then(function(){closeLbe();snd('ok');lbPull(true)}).catch(function(){smsg('lbe-msg','Could not reach the online leaderboard.')});
