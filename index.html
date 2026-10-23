@@ -1418,10 +1418,11 @@ function grid(a){return'<div class="sgrid">'+a.map(function(x){return fld(x[0],x
 function sel(id,opts){return'<select id="'+id+'" class="sinp" style="width:100%">'+opts+'</select>'}
 function opts(arr,fn){return arr.map(function(x,i){return'<option value="'+i+'">'+fn(x,i)+'</option>'}).join('')}
 var ec=[['cash','Cash',Math.floor(row.cash)],['tips','Uncollected tips'],['srv','Customers served',row.srv],['tier','Highest tier unlocked (1-10)']];
-var rm=[['r_toilets','Toilets (1-6)'],['r_fl','Fee upgrades'],['r_fee','Fee per visit (overrides)'],['r_exp','Expansions'],['r_ml','Anti-mess coatings'],['r_cl','Cleaners'],['r_rserved','Customers served in this room'],['r_golden','Golden toilet (0 or 1)']];
+var rm=[['r_toilets','Toilets (1-6)'],['r_fl','Fee upgrades'],['r_fee','Fee per visit (overrides)'],['r_exp','Expansions'],['r_ml','Anti-mess coatings'],['r_cl','Cleaners'],['r_rserved','Customers served in this room'],['r_golden','Golden toilet (0 or 1)'],['m_cnt','Messes on their floor now (0-6)']];
 var pr=[['pts','Prestige points'],['runs','Prestiges (toward ascension)',''],['all','Lifetime prestiges',row.all],['asc','Ascensions',row.asc]].concat(PSH.map(function(it){return['pu_'+it.id,it.name+' level (0-'+it.max+')']}));
 var pt=[['us','Incubator slot upgrades (0-'+UP_SLOT_MAX+')'],['ue','Equip slot upgrades (0-'+UP_EQ_MAX+')'],['uh','Hatch speed level (0-'+UP_SPD_MAX+')'],['sv','Storage level (0-'+UP_STO_MAX+')'],['xs','Bonus incubator slots'],['xe','Bonus equip slots']];
 for(var i=0;i<10;i++)pt.push(['lk'+i,'Luck level, tier '+(i+1)+' eggs (0-'+LK_MAX+')']);
+var cnt=[['n_eq','Pets equipped'],['n_pets','Pets owned in total'],['n_lock','Pets locked'],['n_egg','Eggs in the incubator']];
 var give='<div class="alab">Give pets</div><div class="sgrid">'
 +'<div class="afield"><label>Pet tier</label>'+sel('ple-gt',opts(TN,function(n,i){return'Tier '+(i+1)+' - '+PETS[i].n}))+'</div>'
 +'<div class="afield"><label>Rarity</label>'+sel('ple-gr',opts(RAR.slice(0,4),function(n){return n}))+'</div>'
@@ -1438,7 +1439,7 @@ $('lbe-body').innerHTML='<h2 style="margin:0 0 4px">🎮 Edit player: '+row.n+'<
 +'<div data-pp="0">'+grid(ec)+'</div>'
 +'<div data-pp="1" hidden><div class="afield"><label>Room to edit</label>'+sel('ple-room','<option value="-1">Their current room</option>'+opts(TN,function(n,i){return'Tier '+(i+1)+' - '+n}))+'</div>'+grid(rm)+'</div>'
 +'<div data-pp="2" hidden>'+grid(pr)+'</div>'
-+'<div data-pp="3" hidden>'+grid(pt)+give+'</div>'
++'<div data-pp="3" hidden><div class="alab">Current counts</div><p class="note" style="margin:0 0 6px">Raises or lowers how many they already have. Equipping or hatching more also adds slots if needed. Lowering pets owned removes the weakest unlocked ones first, and raising it adds Tier 1 Common pets. New eggs use the pet tier chosen under Give pets.</p>'+grid(cnt)+'<div class="alab">Upgrades</div>'+grid(pt)+give+'</div>'
 +'<div id="lbe-msg" class="smsg"></div>'
 +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="tab" id="lbe-x">Cancel</button><button class="big" id="ple-send" style="padding:8px 16px">Send to player</button></div>';
 $('ple-tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-ptb]');if(!b)return;var n=b.dataset.ptb;
@@ -1454,7 +1455,7 @@ if(sq>0){g.sec=[{i:+$('ple-gs').value,t:+$('ple-gt').value,n:Math.min(500,sq)}];
 if($('ple-clr').checked){g.clear=1;any=true}
 if($('ple-uneq').checked){g.uneq=1;any=true}
 if(!any)return smsg('lbe-msg','Fill in at least one box.');
-var obj={id:row.id,m:$('ple-mode').value,rm:+$('ple-room').value,f:f,g:g,t:Date.now()};
+var obj={id:row.id,m:$('ple-mode').value,rm:+$('ple-room').value,f:f,g:g,et:+$('ple-gt').value,t:Date.now()};
 upCmd(['HSET',EDK,k,JSON.stringify(obj)]).then(function(){smsg('lbe-msg','Sent! It applies the next time that player game checks in.',true)}).catch(function(){smsg('lbe-msg','Could not reach the online server.')})};
 $('lbe-gate').classList.add('on');snd('open');
 }
@@ -1477,12 +1478,30 @@ var tg=rt===S.tier?S:(S.rooms[rt]||(S.rooms[rt]=DEF(rt)));
 if(f.r_golden!=null)tg.golden=Number(f.r_golden)?1:0;
 if(f.r_fl!=null)tg.fee=FEEB[rt]+Math.round(FEEB[rt]*0.4)*(tg.fl||0);
 if(f.r_fee!=null)tg.fee=Math.max(1,nv(tg.fee,f.r_fee));
+if(f.m_cnt!=null){var mc=nv(messes,f.m_cnt,6),ms=room.querySelectorAll('.mess:not(.gold)'),q2;
+while(messes<mc)addMess(1);
+for(q2=ms.length-1;messes>mc&&q2>=0;q2--){ms[q2].remove();messes--}
+S.clean=Math.max(0,100-messes*12)}
 [['us',UP_SLOT_MAX],['ue',UP_EQ_MAX],['uh',UP_SPD_MAX],['sv',UP_STO_MAX],['xs',null],['xe',null]].forEach(function(q){if(f[q[0]]!=null)PP[q[0]]=nv(PP[q[0]],f[q[0]],q[1])});
 for(i=0;i<10;i++)if(f['lk'+i]!=null)PP.lk[i]=nv(lkLvl(i),f['lk'+i],LK_MAX);
 if(g.clear){PP.inv=[];PP.eq=[]}
 if(g.uneq)PP.eq=[];
 (g.pets||[]).forEach(function(q){for(var j=0;j<q.n;j++)newPet(q.t,q.r,q.ty)});
 (g.sec||[]).forEach(function(q){for(var j=0;j<q.n;j++)newSec(q.i,q.t)});
+if(f.n_pets!=null){var cp=PP.inv.length,tp=nv(cp,f.n_pets,2000);
+if(tp<cp){var ord=PP.inv.slice().sort(function(a,b){return((PP.eq.indexOf(a.id)>=0)-(PP.eq.indexOf(b.id)>=0))||((a.lock?1:0)-(b.lock?1:0))||(a.r-b.r)||(a.t-b.t)}).slice(0,cp-tp).map(function(p){return p.id});
+PP.inv=PP.inv.filter(function(p){return ord.indexOf(p.id)<0});PP.eq=PP.eq.filter(function(id2){return ord.indexOf(id2)<0})}
+else for(i=cp;i<tp;i++)newPet(0,0)}
+if(f.n_eq!=null){var ce=PP.eq.length,te=nv(ce,f.n_eq,PP.inv.length);
+if(te<ce)PP.eq=PP.eq.slice(0,te);
+else PP.inv.filter(function(p){return PP.eq.indexOf(p.id)<0}).sort(function(a,b){return b.r-a.r||b.t-a.t}).slice(0,te-ce).forEach(function(p){PP.eq.push(p.id)});
+if(PP.eq.length>eqSlots())PP.xe+=PP.eq.length-eqSlots()}
+if(f.n_lock!=null){var lk0=PP.inv.filter(function(p){return p.lock}).length,tl=nv(lk0,f.n_lock,PP.inv.length);
+if(tl>lk0)PP.inv.filter(function(p){return!p.lock}).sort(function(a,b){return b.r-a.r||b.t-a.t}).slice(0,tl-lk0).forEach(function(p){p.lock=1});
+else PP.inv.filter(function(p){return p.lock}).slice(0,lk0-tl).forEach(function(p){p.lock=0})}
+if(f.n_egg!=null){var ci=PP.inc.length,ti=nv(ci,f.n_egg,50),nw=Date.now();
+if(ti<ci)PP.inc.splice(ti);else for(i=ci;i<ti;i++)PP.inc.push({t:Math.max(0,Math.min(9,e.et||0)),s:nw,at:nw});
+if(PP.inc.length>incSlots())PP.xs+=PP.inc.length-incSlots()}
 PP.eq=PP.eq.slice(0,eqSlots());
 tabKey='';roomBG.k='';drawRoom();syncCleaners();PK={};render();if(!$('pg-pets').hidden)petsRender();
 news('🛡️ The Overlord adjusted your stats.');snd('ok');saveNow();lbPush(1);
