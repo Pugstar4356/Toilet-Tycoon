@@ -1413,31 +1413,77 @@ var EDK='tt:edits';
 function openPlEdit(k){
 if(!ADM_OK)return;
 var row=(LBON.rows||[]).filter(function(r){return r.k===k})[0];if(!row)return;
-function nf2(id,l,ph){return'<div class="afield"><label for="'+id+'">'+l+'</label><input type="number" min="0" id="'+id+'" placeholder="'+ph+'"></div>'}
+function fld(key,label,ph){return'<div class="afield"><label>'+label+'</label><input type="number" min="0" data-pf="'+key+'" placeholder="'+(ph===undefined?'unchanged':ph)+'"></div>'}
+function grid(a){return'<div class="sgrid">'+a.map(function(x){return fld(x[0],x[1],x[2])}).join('')+'</div>'}
+function sel(id,opts){return'<select id="'+id+'" class="sinp" style="width:100%">'+opts+'</select>'}
+function opts(arr,fn){return arr.map(function(x,i){return'<option value="'+i+'">'+fn(x,i)+'</option>'}).join('')}
+var ec=[['cash','Cash',Math.floor(row.cash)],['tips','Uncollected tips'],['srv','Customers served',row.srv],['tier','Highest tier unlocked (1-10)']];
+var rm=[['r_toilets','Toilets (1-6)'],['r_fl','Fee upgrades'],['r_fee','Fee per visit (overrides)'],['r_exp','Expansions'],['r_ml','Anti-mess coatings'],['r_cl','Cleaners'],['r_rserved','Customers served in this room'],['r_golden','Golden toilet (0 or 1)']];
+var pr=[['pts','Prestige points'],['runs','Prestiges (toward ascension)',''],['all','Lifetime prestiges',row.all],['asc','Ascensions',row.asc]].concat(PSH.map(function(it){return['pu_'+it.id,it.name+' level (0-'+it.max+')']}));
+var pt=[['us','Incubator slot upgrades (0-'+UP_SLOT_MAX+')'],['ue','Equip slot upgrades (0-'+UP_EQ_MAX+')'],['uh','Hatch speed level (0-'+UP_SPD_MAX+')'],['sv','Storage level (0-'+UP_STO_MAX+')'],['xs','Bonus incubator slots'],['xe','Bonus equip slots']];
+for(var i=0;i<10;i++)pt.push(['lk'+i,'Luck level, tier '+(i+1)+' eggs (0-'+LK_MAX+')']);
+var give='<div class="alab">Give pets</div><div class="sgrid">'
++'<div class="afield"><label>Pet tier</label>'+sel('ple-gt',opts(TN,function(n,i){return'Tier '+(i+1)+' - '+PETS[i].n}))+'</div>'
++'<div class="afield"><label>Rarity</label>'+sel('ple-gr',opts(RAR.slice(0,4),function(n){return n}))+'</div>'
++'<div class="afield"><label>Boost type</label><select id="ple-gy" class="sinp" style="width:100%">'+PTY.map(function(y){return'<option value="'+y+'">'+PEM[y]+' '+PNAME[y]+'</option>'}).join('')+'</select></div>'
++'<div class="afield"><label>How many</label><input type="number" min="0" id="ple-gq" placeholder="0"></div>'
++'<div class="afield"><label>Secret pet</label>'+sel('ple-gs',opts(SEC,function(q){return q.n}))+'</div>'
++'<div class="afield"><label>How many secret</label><input type="number" min="0" id="ple-sq" placeholder="0"></div></div>'
++'<div class="srow"><div><b>Unequip all pets</b></div><label class="sw"><input type="checkbox" id="ple-uneq"><i></i></label></div>'
++'<div class="srow"><div><b>Remove all their pets first</b><small>Clears the whole collection before giving new pets.</small></div><label class="sw"><input type="checkbox" id="ple-clr"><i></i></label></div>';
+$('lbe-body').style.maxWidth='560px';
 $('lbe-body').innerHTML='<h2 style="margin:0 0 4px">🎮 Edit player: '+row.n+'</h2><p class="note" style="margin:0 0 8px">Changes the stats inside that player game. It applies within about 20 seconds if they are online, or when they next log in. Leave a box empty to leave that stat alone.</p>'
-+'<div class="afield"><label for="ple-mode">Mode</label><select id="ple-mode" class="sinp" style="width:100%"><option value="set">Set to this value</option><option value="add">Add to their current value</option></select></div>'
-+'<div class="sgrid">'+nf2('ple-cash','Cash',Math.floor(row.cash))+nf2('ple-srv','Customers served',row.srv)+nf2('ple-pts','Prestige points','points')+nf2('ple-runs','Prestiges (toward ascension)','count')+nf2('ple-all','Lifetime prestiges',row.all)+nf2('ple-asc','Ascensions',row.asc)+nf2('ple-tier','Highest tier unlocked (1-10)','tier')+'</div>'
++'<div class="afield"><label>Mode</label>'+sel('ple-mode','<option value="set">Set to this value</option><option value="add">Add to their current value</option>')+'</div>'
++'<div class="tabs" id="ple-tabs">'+['💰 Economy','🚽 Room','⭐ Prestige','🐾 Pets'].map(function(t,i){return'<button class="tab'+(i?'':' on')+'" data-ptb="'+i+'">'+t+'</button>'}).join('')+'</div>'
++'<div data-pp="0">'+grid(ec)+'</div>'
++'<div data-pp="1" hidden><div class="afield"><label>Room to edit</label>'+sel('ple-room','<option value="-1">Their current room</option>'+opts(TN,function(n,i){return'Tier '+(i+1)+' - '+n}))+'</div>'+grid(rm)+'</div>'
++'<div data-pp="2" hidden>'+grid(pr)+'</div>'
++'<div data-pp="3" hidden>'+grid(pt)+give+'</div>'
 +'<div id="lbe-msg" class="smsg"></div>'
 +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="tab" id="lbe-x">Cancel</button><button class="big" id="ple-send" style="padding:8px 16px">Send to player</button></div>';
+$('ple-tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-ptb]');if(!b)return;var n=b.dataset.ptb;
+document.querySelectorAll('#lbe-body [data-pp]').forEach(function(d){d.hidden=d.dataset.pp!==n});
+document.querySelectorAll('#ple-tabs button').forEach(function(x){x.classList.toggle('on',x===b)})});
 $('lbe-x').onclick=closeLbe;
 $('ple-send').onclick=function(){
-var f={},any=false;
-[['cash','ple-cash'],['srv','ple-srv'],['pts','ple-pts'],['runs','ple-runs'],['all','ple-all'],['asc','ple-asc'],['tier','ple-tier']].forEach(function(p){var raw=$(p[1]).value;if(raw==='')return;var v=Math.floor(+raw);if(isFinite(v)&&v>=0){f[p[0]]=v;any=true}});
+var f={},g={},any=false;
+document.querySelectorAll('#lbe-body [data-pf]').forEach(function(el){if(el.value==='')return;var v=Math.floor(+el.value);if(isFinite(v)&&v>=0){f[el.dataset.pf]=v;any=true}});
+var gq=Math.floor(+$('ple-gq').value)||0,sq=Math.floor(+$('ple-sq').value)||0;
+if(gq>0){g.pets=[{t:+$('ple-gt').value,r:+$('ple-gr').value,ty:$('ple-gy').value,n:Math.min(500,gq)}];any=true}
+if(sq>0){g.sec=[{i:+$('ple-gs').value,t:+$('ple-gt').value,n:Math.min(500,sq)}];any=true}
+if($('ple-clr').checked){g.clear=1;any=true}
+if($('ple-uneq').checked){g.uneq=1;any=true}
 if(!any)return smsg('lbe-msg','Fill in at least one box.');
-var obj={id:row.id,m:$('ple-mode').value,f:f,t:Date.now()};
+var obj={id:row.id,m:$('ple-mode').value,rm:+$('ple-room').value,f:f,g:g,t:Date.now()};
 upCmd(['HSET',EDK,k,JSON.stringify(obj)]).then(function(){smsg('lbe-msg','Sent! It applies the next time that player game checks in.',true)}).catch(function(){smsg('lbe-msg','Could not reach the online server.')})};
 $('lbe-gate').classList.add('on');snd('open');
 }
 function applyEdit(e){
-var f=e.f||{},add=e.m==='add',P=S.p;
-function nv(cur,v){v=Number(v);if(!isFinite(v))return cur;return Math.max(0,Math.floor(add?(Number(cur)||0)+v:v))}
+var f=e.f||{},g=e.g||{},add=e.m==='add',P=S.p,PP=PT(),i;
+function nv(cur,v,max){v=Number(v);if(!isFinite(v))return cur;var r=Math.max(0,Math.floor(add?(Number(cur)||0)+v:v));return max!=null?Math.min(max,r):r}
+if(f.tier!=null){var nt=Math.max(1,Math.min(10,Math.floor(add?S.unlocked+1+Number(f.tier):Number(f.tier))))-1;if(S.tier>nt)swap(nt);S.unlocked=nt}
 if(f.cash!=null)S.cash=nv(S.cash,f.cash);
+if(f.tips!=null)S.tips=nv(S.tips,f.tips);
 if(f.srv!=null){var ns=nv(S.served,f.srv);P.srv=add?(P.srv||0)+(ns-S.served):ns;S.served=ns}
 if(f.pts!=null)P.pts=nv(P.pts,f.pts);
 if(f.runs!=null)P.runs=nv(P.runs,f.runs);
 if(f.all!=null)P.all=nv(P.all||0,f.all);
 if(f.asc!=null)P.asc=nv(P.asc||0,f.asc);
-if(f.tier!=null){var nt=Math.max(1,Math.min(10,Math.floor(add?S.unlocked+1+Number(f.tier):Number(f.tier))))-1;if(S.tier>nt)swap(nt);S.unlocked=nt}
+P.up=P.up||{};
+PSH.forEach(function(it){var key='pu_'+it.id;if(f[key]!=null)P.up[it.id]=nv(PL(it.id),f[key],it.max)});
+var rt=(e.rm>=0&&e.rm<10)?e.rm:S.tier;
+var tg=rt===S.tier?S:(S.rooms[rt]||(S.rooms[rt]=DEF(rt)));
+[['toilets',1,6],['fl',0,null],['exp',0,null],['ml',0,null],['cl',0,20],['rserved',0,null]].forEach(function(q){var key='r_'+q[0];if(f[key]!=null)tg[q[0]]=Math.max(q[1],nv(tg[q[0]]||0,f[key],q[2]))});
+if(f.r_golden!=null)tg.golden=Number(f.r_golden)?1:0;
+if(f.r_fl!=null)tg.fee=FEEB[rt]+Math.round(FEEB[rt]*0.4)*(tg.fl||0);
+if(f.r_fee!=null)tg.fee=Math.max(1,nv(tg.fee,f.r_fee));
+[['us',UP_SLOT_MAX],['ue',UP_EQ_MAX],['uh',UP_SPD_MAX],['sv',UP_STO_MAX],['xs',null],['xe',null]].forEach(function(q){if(f[q[0]]!=null)PP[q[0]]=nv(PP[q[0]],f[q[0]],q[1])});
+for(i=0;i<10;i++)if(f['lk'+i]!=null)PP.lk[i]=nv(lkLvl(i),f['lk'+i],LK_MAX);
+if(g.clear){PP.inv=[];PP.eq=[]}
+if(g.uneq)PP.eq=[];
+(g.pets||[]).forEach(function(q){for(var j=0;j<q.n;j++)newPet(q.t,q.r,q.ty)});
+(g.sec||[]).forEach(function(q){for(var j=0;j<q.n;j++)newSec(q.i,q.t)});
+PP.eq=PP.eq.slice(0,eqSlots());
 tabKey='';roomBG.k='';drawRoom();syncCleaners();PK={};render();if(!$('pg-pets').hidden)petsRender();
 news('🛡️ The Overlord adjusted your stats.');snd('ok');saveNow();lbPush(1);
 }
@@ -1465,6 +1511,7 @@ var row=k?(LBON.rows||[]).filter(function(r){return r.k===k})[0]:null;
 if(k&&!row)return;
 var r=row||{n:'',asc:0,all:0,srv:0,pets:0,cash:0,id:''};
 function nf(id,l,v){return'<div class="afield"><label for="'+id+'">'+l+'</label><input type="number" min="0" id="'+id+'" value="'+Math.floor(v)+'"></div>'}
+$('lbe-body').style.maxWidth='420px';
 $('lbe-body').innerHTML='<h2 style="margin:0 0 4px">'+(row?'Edit leaderboard entry':'Add leaderboard entry')+'</h2><p class="note" style="margin:0 0 8px">Changes go straight to the online leaderboard for everyone. Freeze an entry so the player\'s own game cannot overwrite it. To remove a real player, hide + freeze them (deleting alone gets re-posted by their game).</p>'
 +'<div class="afield"><label for="lbe-name">Player name</label><input id="lbe-name" maxlength="16" value="'+String(r.n).replace(/[^A-Za-z0-9_]/g,'')+'"'+(row?' disabled':'')+'></div>'
 +'<div class="sgrid">'+nf('lbe-asc','Ascensions',r.asc)+nf('lbe-all','Prestiges',r.all)+nf('lbe-srv','Customers',r.srv)+nf('lbe-pets','Pets',r.pets)+nf('lbe-cash','Cash',r.cash)+'</div>'
