@@ -185,6 +185,10 @@ html.nonews #newscard{display:none}
 .sec{margin-bottom:16px}
 @media (max-width:760px){.layout,.bottom{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}h1{font-size:1.6rem}}
 .pc{position:relative}.stk{position:absolute;top:6px;right:6px;background:var(--green);color:var(--ink);font:800 12px monospace;border-radius:8px;padding:2px 7px}
+.mop:disabled{opacity:.4;cursor:default}
+.alab{color:var(--muted);font-weight:800;font-size:.7rem;text-transform:uppercase;margin:14px 0 2px}.alab:first-of-type{margin-top:4px}
+.adm .hint{color:var(--muted);font-size:.8rem;margin:4px 0 8px}
+#adm-tabs{margin:0 0 14px}
 </style>
 </head>
 <body>
@@ -263,6 +267,7 @@ html.nonews #newscard{display:none}
 <div id="pg-lb" hidden>
 <section class="card sec"><div class="ttl"><h2>🏆 Leaderboard</h2><span class="lvl" id="lb-count"></span></div>
 <p class="note" id="lb-note" style="margin-top:0">Ranks every account on this device. Click a column to sort. Default order: Ascension, then Prestiges, then Customers.</p>
+<div id="lb-admin" hidden style="margin:0 0 10px;display:flex;gap:8px"><button class="tab" id="lb-add">➕ Add entry</button><button class="tab" id="lb-ref">🔄 Refresh</button></div>
 <div style="overflow-x:auto"><table class="odds lb" id="lb-table"></table></div></section>
 </div>
 <div id="pg-pets" hidden>
@@ -299,12 +304,21 @@ html.nonews #newscard{display:none}
 <div class="ar"><span style="font-size:.8rem;font-weight:700">Customer speed</span><input type="range" id="a-speed" min="1" max="20" value="1"><b id="a-speedv">×1</b></div>
 </fieldset>
 <fieldset><legend>Pets &amp; eggs</legend>
+<div class="alab">Choose tier, rarity and boost</div>
 <div class="ar"><select id="a-ptier"></select><select id="a-prar"></select><select id="a-pty"></select></div>
-<div class="ar"><select id="a-psec"></select><button data-a="giveSec">Give secret pet</button></div>
-<div class="ar"><button data-a="giveAllSec" class="alt">Give all secrets</button><button data-a="forceSec" class="alt">Toggle 100% secret hatch</button><button data-a="revealSec" class="alt">Toggle reveal secret names</button><button data-a="maxInc" class="alt">Max pet upgrades</button></div>
 <div class="ar"><button data-a="givePet">Give pet</button><button data-a="giveSet" class="alt">Give legendary set</button><button data-a="giveEgg" class="alt">Give ready egg</button></div>
+<div class="alab">Secret pets</div>
+<div class="ar"><select id="a-psec"></select><button data-a="giveSec">Give</button><button data-a="giveAllSec" class="alt">Give all</button></div>
+<div class="ar"><button data-a="forceSec" class="alt">Toggle 100% secret hatch</button><button data-a="revealSec" class="alt">Toggle reveal names</button></div>
+<div class="alab">Eggs &amp; incubator</div>
 <div class="ar"><button data-a="hatchAll" class="alt">Hatch all now</button><button data-a="freeEggs" class="alt">Toggle free eggs</button><button data-a="instant" class="alt">Toggle instant hatch</button></div>
-<div class="ar"><button data-a="slotInc" class="alt">+ Incubator slot</button><button data-a="slotEq" class="alt">+ Equip slot</button><button data-a="clearPets" class="warn">Clear pets</button></div>
+<div class="alab">Upgrades &amp; cleanup</div>
+<div class="ar"><button data-a="maxInc" class="alt">Max pet upgrades</button><button data-a="slotInc" class="alt">+ Incubator slot</button><button data-a="slotEq" class="alt">+ Equip slot</button><button data-a="clearPets" class="warn">Clear pets</button></div>
+</fieldset>
+<fieldset><legend>Leaderboard</legend>
+<div class="alab">Manage the online leaderboard</div>
+<p class="hint">Edit any player's stats, add fake entries, or hide and delete players. Frozen entries cannot be overwritten by the player's own game. You can also use the Edit buttons on the Leaderboard page.</p>
+<div class="ar"><button data-a="lbOpen">Open leaderboard</button><button data-a="lbAdd" class="alt">Add entry</button><button data-a="lbRefresh" class="alt">Refresh</button></div>
 </fieldset>
 <fieldset><legend>Save data</legend>
 <textarea id="a-save" placeholder="Export your save here, or paste one to import"></textarea>
@@ -315,6 +329,7 @@ html.nonews #newscard{display:none}
 </main>
 <div class="gate" id="odds-gate"><div class="box" style="max-width:560px;max-height:88vh;overflow:auto"><div id="odds-body"></div><div style="text-align:right;margin-top:14px"><button class="big" id="odds-close" style="padding:8px 16px">Close</button></div></div></div>
 <div class="gate" id="rel-gate"><div class="box" id="rel-body"></div></div>
+<div class="gate" id="lbe-gate"><div class="box" id="lbe-body" style="max-width:420px;max-height:90vh;overflow:auto"></div></div>
 <div class="gate on" id="auth" style="z-index:80;background:var(--bg1)"><div class="box" style="max-width:380px">
 <h1 style="font-size:1.7rem;margin:0 0 4px;text-align:center">🚽 Toilet <span>Tycoon</span></h1>
 <p class="note" style="text-align:center;margin:0 0 14px">Create an account to save your progress and join the leaderboard.</p>
@@ -858,7 +873,7 @@ function stoCost(l){return Math.round(25000*Math.pow(12,l))}
 function upEqCost(l){return Math.round(1000*TMUL[Math.min(l+2,9)])}
 function upSlotCost(l){return Math.round(600*TMUL[Math.min(l,9)])}
 function upSpdCost(l){return Math.round(800*Math.pow(2.2,l))}
-function relVal(p){return Math.round(eggBase(p.t)*[0.1,0.3,0.8,2,25][p.r])}
+function relVal(p){if(p.sec!=null)return 0;return Math.round(eggBase(p.t)*[0.1,0.3,0.8,2,25][p.r])}
 function fmtT(x){x=Math.max(0,Math.ceil(x));return Math.floor(x/60)+':'+('0'+x%60).slice(-2)}
 function pctx(v){return Math.round(v*1000)/10}
 var PTX={money:'money',speed:'customers',tips:'tips',vip:'VIP chance',mess:'messes'};
@@ -925,10 +940,10 @@ E(12,19.5,9.2,9.8,c);E(12,12.5,7.2,8.4,c);
 E(8.5,16,2,2,q);E(15.5,21,2.6,2.6,q);E(11,25,1.6,1.6,q);E(14,11,1.3,1.3,q);E(9.5,9.5,1,1,q);
 },function(R,E){E(8,10.5,1.4,3,'rgba(255,255,255,.65)')});
 }
-function gkey(p){return p.sec!=null?'s'+p.sec:p.t+'_'+p.r+'_'+p.ty}
+function gkey(p){return(p.lock?'L':'')+(p.sec!=null?'s'+p.sec:p.t+'_'+p.r+'_'+p.ty)}
 function petCard(p,eq,n){
-return '<div class="pc r'+p.r+(eq?' eqd':'')+'"><div class="pim '+petCls(p)+'"></div><b>'+petName(p)+'</b><small>'+petEm(p)+' '+petTxt(p)+'</small>'+(eq?'<span class="eqtag">EQUIPPED</span>':'')+(n>1?'<span class="stk">×'+n+'</span>':'')+
-'<div class="pb"><button class="buy" data-pa="'+(eq?'unequip':'equip')+'" data-id="'+p.id+'">'+(eq?'Unequip':'Equip')+'</button><button class="mop" data-pa="release" data-id="'+p.id+'">Release'+(n>1?'…':' · '+fmt(relVal(p)))+'</button></div></div>';
+return '<div class="pc r'+p.r+(eq?' eqd':'')+'"><div class="pim '+petCls(p)+'"></div><b>'+petName(p)+'</b><small>'+petEm(p)+' '+petTxt(p)+'</small>'+(eq?'<span class="eqtag">EQUIPPED</span>':'')+(n>1?'<span class="stk">×'+n+'</span>':'')+(p.lock?'<span class="eqtag" style="background:#ffc400">🔒 LOCKED</span>':'')+
+'<div class="pb"><button class="buy" data-pa="'+(eq?'unequip':'equip')+'" data-id="'+p.id+'">'+(eq?'Unequip':'Equip')+'</button><button class="mop" data-pa="lock" data-id="'+p.id+'">'+(p.lock?'🔓 Unlock':'🔒 Lock')+'</button><button class="mop" data-pa="release"'+(p.lock?' disabled':'')+' data-id="'+p.id+'">Release'+(n>1?'…':' · '+fmt(relVal(p)))+'</button></div></div>';
 }
 function buyEgg(t){
 var P=PT(),c=eggCost(t);
@@ -999,7 +1014,7 @@ else{var rd=now>=e.at;h+='<div class="pc"><img alt="" class="egg'+(rd?' rdy':'')
 $('pet-inc').innerHTML=h}
 P.inc.forEach(function(e,i){if(now>=e.at)return;var pb=$('ib-'+i),tt=$('it-'+i);if(pb)pb.style.width=Math.min(100,(now-e.s)/Math.max(1,e.at-e.s)*100)+'%';if(tt)tt.textContent=fmtT((e.at-now)/1000)});
 // collection
-var vk=P.inv.map(function(p){return p.id}).join(',')+'|'+P.eq.join(',');
+var vk=P.inv.map(function(p){return p.id+(p.lock?'L':'')}).join(',')+'|'+P.eq.join(',');
 if(PK.v!==vk){PK.v=vk;
 var eqs=P.eq.map(petOf).filter(Boolean),rest=P.inv.filter(function(p){return P.eq.indexOf(p.id)<0}).sort(function(a,b){return b.r-a.r||b.t-a.t});
 var gs={},go=[];rest.forEach(function(p){var k=gkey(p);if(!gs[k]){gs[k]={p:p,n:0};go.push(k)}gs[k].n++});
@@ -1020,12 +1035,13 @@ else if(a==='upeq'){var c3=upEqCost(P.ue);if(P.ue<UP_EQ_MAX&&S.unlocked>=P.ue+2&
 else if(a==='upspd'){var c2=upSpdCost(P.uh);if(P.uh<UP_SPD_MAX&&S.cash>=c2){S.cash-=c2;var f=(1+0.3*P.uh)/(1+0.3*(P.uh+1)),nw=Date.now();P.uh++;P.inc.forEach(function(e){if(nw<e.at){e.s=nw-(nw-e.s)*f;e.at=nw+(e.at-nw)*f}})}}
 else if(a==='equip'){if(P.eq.length<eqSlots()&&P.eq.indexOf(id)<0){P.eq.push(id);snd('equip')}else snd('error')}
 else if(a==='unequip'){ix=P.eq.indexOf(id);if(ix>=0)P.eq.splice(ix,1);snd('unequip')}
-else if(a==='release'){var pet=petOf(id);if(pet){var gk=gkey(pet);if(P.eq.indexOf(id)<0&&relIds(gk).length>1){openRel(gk);return}releaseIds([id])}}
+else if(a==='lock'){var lp=petOf(id);if(lp){lp.lock=lp.lock?0:1;snd(lp.lock?'equip':'unequip')}}
+else if(a==='release'){var pet=petOf(id);if(pet&&!pet.lock){var gk=gkey(pet);if(P.eq.indexOf(id)<0&&relIds(gk).length>1){openRel(gk);return}releaseIds([id])}}
 petsRender();render();
 });
 var REL=null;
-function releaseIds(ids){var P=PT(),tot=0;ids.forEach(function(id){var pet=petOf(id);if(!pet)return;tot+=relVal(pet);var ix=P.eq.indexOf(id);if(ix>=0)P.eq.splice(ix,1);P.inv=P.inv.filter(function(q){return q.id!==id})});if(ids.length)snd('release');S.cash+=tot;return tot}
-function relIds(gk){var P=PT();return P.inv.filter(function(q){return gkey(q)===gk&&P.eq.indexOf(q.id)<0}).map(function(q){return q.id})}
+function releaseIds(ids){var P=PT(),tot=0;ids.forEach(function(id){var pet=petOf(id);if(!pet||pet.lock)return;tot+=relVal(pet);var ix=P.eq.indexOf(id);if(ix>=0)P.eq.splice(ix,1);P.inv=P.inv.filter(function(q){return q.id!==id})});if(ids.length)snd('release');S.cash+=tot;return tot}
+function relIds(gk){var P=PT();return P.inv.filter(function(q){return gkey(q)===gk&&!q.lock&&P.eq.indexOf(q.id)<0}).map(function(q){return q.id})}
 function relQty(){var q=Math.floor(+$('rel-n').value);if(!isFinite(q)||q<1)q=1;return Math.min(q,REL.n)}
 function relSync(){var q=relQty();$('rel-r').value=q;$('rel-t').textContent='Release '+q+' of '+REL.n+' for '+fmt(q*REL.v);$('rel-go').textContent='Release '+q}
 function openRel(gk){
@@ -1049,7 +1065,7 @@ if(n===1){PK={};petsRender()}
 if(n===2)lbRender();
 if(n===3)setRender();
 }
-$('odds-close').onclick=closeOdds;$('odds-gate').addEventListener('click',function(e){if(e.target===this)closeOdds()});document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOdds();closeRel()}});
+$('odds-close').onclick=closeOdds;$('odds-gate').addEventListener('click',function(e){if(e.target===this)closeOdds()});document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeOdds();closeRel();closeLbe()}});
 $('nav-game').onclick=function(){showPage(0)};$('nav-pets').onclick=function(){showPage(1)};$('nav-lb').onclick=function(){showPage(2)};$('nav-set').onclick=function(){showPage(3)};
 var gbWas=false;
 setInterval(function(){var r=(S.gb||0)-Date.now(),g=$('gbuff');if(r>0)gbWas=true;else if(gbWas){gbWas=false;snd('frenzyEnd')}if(r>0){g.hidden=false;g.innerHTML='✨ Golden frenzy<br>×3 💰 · ×2 👥 · '+Math.ceil(r/1000)+'s'}else g.hidden=true},250);
@@ -1099,6 +1115,9 @@ slotEq:function(){PT().xe++},
 clearPets:function(){var P=PT();P.inv=[];P.eq=[];P.inc=[]},
 export:function(){$('a-save').value=JSON.stringify(S)},
 import:function(){try{var q=JSON.parse($('a-save').value),n=newS();for(var k in q)n[k]=q[k];S=n;aReset();news('Save imported via admin panel.')}catch(e){alert('Invalid save data')}},
+lbOpen:function(){showPage(2)},
+lbAdd:function(){openLbEdit(null)},
+lbRefresh:function(){lbPull(true)},
 wipe:function(){if(!confirm('Wipe the save and restart?'))return;try{localStorage.removeItem(KEY)}catch(e){}S=newS();aReset()}
 };
 (function(){var t=$('a-ptier'),r=$('a-prar'),y=$('a-pty'),i;
@@ -1110,7 +1129,7 @@ PTY.forEach(function(k){y.innerHTML+='<option value="'+k+'">'+PEM[k]+' '+PNAME[k
 var ADM_OK=false;
 var ADMIN_KEY='overlord',ADMIN_SALT='7c1e94b2d05a38f6e1b9a4c27d803f5e',ADMIN_HASH='9986038d3f8c49b90008a48d11b16cf9f7fd1d88cdc4cea454f8a7a8b73a49f4';
 function closeGate(){}
-function admSync(){ADM_OK=(ACC===ADMIN_KEY);$('admbtn').hidden=!ADM_OK;if(!ADM_OK)$('admin').hidden=true}
+function admSync(){ADM_OK=(ACC===ADMIN_KEY);$('admbtn').hidden=!ADM_OK;$('lb-admin').style.display=ADM_OK?'flex':'none';if(!ADM_OK)$('admin').hidden=true}
 $('admin').addEventListener('click',function(e){
 if(!ADM_OK)return;
 var b=e.target.closest('button[data-a]');if(!b)return;
@@ -1121,6 +1140,11 @@ tabKey='';roomBG.k='';drawRoom();syncCleaners();render();PK={};petsRender();
 $('a-speed').oninput=function(){if(!ADM_OK)return;ASPEED=+this.value;$('a-speedv').textContent='×'+ASPEED};
 function toggleAdmin(){if(!ADM_OK)return;var a=$('admin');a.hidden=!a.hidden;if(!a.hidden)a.scrollIntoView({behavior:'smooth',block:'nearest'})}
 $('admbtn').onclick=toggleAdmin;
+(function(){var body=$('adm-body'),fs=[].slice.call(body.querySelectorAll('fieldset')),ic=['💰','📈','👥','🐾','🏆','💾'],bar=document.createElement('div'),bs=[];
+bar.className='tabs';bar.id='adm-tabs';
+fs.forEach(function(f,i){var b=document.createElement('button');b.className='tab'+(i?'':' on');b.textContent=(ic[i]||'')+' '+f.querySelector('legend').textContent.replace('&amp;','&');
+b.onclick=function(){fs.forEach(function(x,j){x.hidden=j!==i;bs[j].classList.toggle('on',j===i)})};bs.push(b);bar.appendChild(b);f.hidden=i>0});
+body.parentNode.insertBefore(bar,body)})();
 document.addEventListener('keydown',function(e){if(e.ctrlKey&&e.shiftKey&&(e.key==='A'||e.key==='a')){e.preventDefault();toggleAdmin()}});
 // ---------- accounts ----------
 var sha256=(function(){
@@ -1235,10 +1259,10 @@ var st=a.st,sig=[st.asc,st.all,st.srv,st.pets,Math.floor(st.cash)].join('|');
 if(!force&&sig===LBON.sig&&now-LBON.sigAt<300000)return;
 LBON.pushAt=now;
 var me=ACC,lid=a.lid;
-var check=(LBON.owned===me+':'+lid)?Promise.resolve(true):upCmd(['HGET',UP.hash,me]).then(function(v){
+var check=upCmd(['HGET',UP.hash,me]).then(function(v){
 var cur=null;try{cur=v?JSON.parse(v):null}catch(e){}
 if(cur&&cur.id&&cur.id!==lid){LBON.conflict=true;return false}
-LBON.conflict=false;LBON.owned=me+':'+lid;return true});
+LBON.conflict=false;LBON.owned=me+':'+lid;if(cur&&cur.ovr){LBON.sig=sig;LBON.sigAt=now;return false}return true});
 check.then(function(ok){
 if(!ok)return;
 return upCmd(['HSET',UP.hash,me,JSON.stringify({id:lid,n:a.name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:Math.floor(st.cash||0),t:now})]).then(function(){LBON.sig=sig;LBON.sigAt=now;LBON.err=''})
@@ -1255,7 +1279,7 @@ for(var i=0;r&&i+1<r.length;i+=2){
 var v=null;try{v=JSON.parse(r[i+1])}catch(e){}
 if(!v||r[i]===ADMIN_KEY)continue;
 function num(x){x=Number(x);return isFinite(x)&&x>0?x:0}
-rows.push({k:String(r[i]),n:String(v.n||r[i]).replace(/[^A-Za-z0-9_]/g,'').slice(0,16)||'player',asc:num(v.asc),all:num(v.all),srv:num(v.srv),pets:num(v.pets),cash:num(v.cash)})}
+rows.push({k:String(r[i]),n:String(v.n||r[i]).replace(/[^A-Za-z0-9_]/g,'').slice(0,16)||'player',asc:num(v.asc),all:num(v.all),srv:num(v.srv),pets:num(v.pets),cash:num(v.cash),id:String(v.id||''),ovr:v.ovr?1:0,hid:v.hid?1:0})}
 LBON.rows=rows;LBON.err='';LBON.last=Date.now()
 }).catch(function(){LBON.err='Could not reach the online leaderboard.';LBON.last=Date.now()})
 .then(function(){LBON.busy=false;if(!$('pg-lb').hidden)lbRender()})}
@@ -1266,15 +1290,18 @@ if(ACC)saveNow();
 lbPull();lbPush();
 var A=getAccts(),rows,MEK=ACC;
 if(LBON.rows){
+var mine=LBON.rows.filter(function(r){return r.k===MEK})[0];
 rows=LBON.rows.filter(function(r){return r.k!==MEK});
-if(MEK&&MEK!==ADMIN_KEY&&A[MEK]&&!LBON.conflict){var st=A[MEK].st||{};rows.push({k:MEK,n:A[MEK].name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0})}
+if(mine&&mine.ovr)rows.push(mine);
+else if(MEK&&MEK!==ADMIN_KEY&&A[MEK]&&!LBON.conflict){var st=A[MEK].st||{};rows.push({k:MEK,n:A[MEK].name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0})}
 else if(MEK&&A[MEK]&&LBON.conflict){var o=LBON.rows.filter(function(r){return r.k===MEK})[0];if(o)rows.push(o)}
 }else{
 rows=Object.keys(A).filter(function(k){return k!==ADMIN_KEY}).map(function(k){var a=A[k],st=a.st||{};return{k:k,n:a.name,asc:st.asc||0,all:st.all||0,srv:st.srv||0,pets:st.pets||0,cash:st.cash||0}})}
+if(!ADM_OK)rows=rows.filter(function(r){return!r.hid});
 rows.sort(function(x,y){return(y[LBSORT]-x[LBSORT])||(y.asc-x.asc)||(y.all-x.all)||(y.srv-x.srv)||(y.cash-x.cash)});
-var h='<tr><th>#</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+'</tr>';
+var h='<tr><th>#</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+(ADM_OK?'<th>🛡️</th>':'')+'</tr>';
 rows.forEach(function(r,i){
-h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td></tr>'});
+h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(['🥇','🥈','🥉'][i]||(i+1))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Edit</button></td>':'')+'</tr>'});
 $('lb-table').innerHTML=h;
 $('lb-count').textContent=rows.length+' player'+(rows.length===1?'':'s');
 var note='🌐 Online leaderboard: ranks players from every device. Click a column to sort.';
@@ -1282,7 +1309,41 @@ if(!LBON.rows)note='Connecting to the online leaderboard… showing this device 
 if(LBON.err)note='⚠️ '+LBON.err+(LBON.rows?' Showing the last list we got.':' Showing this device only.');
 if(LBON.conflict)note+=' Another player already uses your username online, so your scores are not being posted. Make a new account with a different name.';
 $('lb-note').textContent=note}
-$('lb-table').addEventListener('click',function(e){var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
+$('lb-table').addEventListener('click',function(e){var eb=e.target.closest('button[data-lbe]');if(eb){openLbEdit(decodeURIComponent(eb.dataset.lbe));return}var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
+function closeLbe(){$('lbe-gate').classList.remove('on')}
+$('lbe-gate').addEventListener('click',function(e){if(e.target===this)closeLbe()});
+$('lb-add').onclick=function(){openLbEdit(null)};
+$('lb-ref').onclick=function(){lbPull(true)};
+function openLbEdit(k){
+if(!ADM_OK)return;
+var row=k?(LBON.rows||[]).filter(function(r){return r.k===k})[0]:null;
+if(k&&!row)return;
+var r=row||{n:'',asc:0,all:0,srv:0,pets:0,cash:0,id:''};
+function nf(id,l,v){return'<div class="afield"><label for="'+id+'">'+l+'</label><input type="number" min="0" id="'+id+'" value="'+Math.floor(v)+'"></div>'}
+$('lbe-body').innerHTML='<h2 style="margin:0 0 4px">'+(row?'Edit leaderboard entry':'Add leaderboard entry')+'</h2><p class="note" style="margin:0 0 8px">Changes go straight to the online leaderboard for everyone. Freeze an entry so the player\'s own game cannot overwrite it. To remove a real player, hide + freeze them (deleting alone gets re-posted by their game).</p>'
++'<div class="afield"><label for="lbe-name">Player name</label><input id="lbe-name" maxlength="16" value="'+String(r.n).replace(/[^A-Za-z0-9_]/g,'')+'"'+(row?' disabled':'')+'></div>'
++'<div class="sgrid">'+nf('lbe-asc','Ascensions',r.asc)+nf('lbe-all','Prestiges',r.all)+nf('lbe-srv','Customers',r.srv)+nf('lbe-pets','Pets',r.pets)+nf('lbe-cash','Cash',r.cash)+'</div>'
++'<div class="srow"><div><b>Freeze entry</b><small>Stops the player\'s game overwriting these numbers.</small></div><label class="sw"><input type="checkbox" id="lbe-ovr" checked><i></i></label></div>'
++'<div class="srow"><div><b>Hide from leaderboard</b><small>Other players will not see this entry.</small></div><label class="sw"><input type="checkbox" id="lbe-hid"'+(row&&row.hid?' checked':'')+'><i></i></label></div>'
++'<div id="lbe-msg" class="smsg"></div>'
++'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;margin-top:10px"><div>'+(row?'<button class="dng" id="lbe-del">Delete entry</button>':'')+'</div><div style="display:flex;gap:8px"><button class="tab" id="lbe-x">Cancel</button><button class="big" id="lbe-save" style="padding:8px 16px">Save</button></div></div>';
+$('lbe-x').onclick=closeLbe;
+$('lbe-save').onclick=function(){
+var nm=$('lbe-name').value.trim();
+if(!/^[A-Za-z0-9_]{3,16}$/.test(nm))return smsg('lbe-msg','Name must be 3-16 letters, numbers or underscores.');
+var key=row?k:nm.toLowerCase();
+if(!row&&(key===ADMIN_KEY||(LBON.rows||[]).some(function(q){return q.k===key})))return smsg('lbe-msg','That name already has an entry. Edit it instead.');
+function g(id){var v=Math.floor(+$(id).value);return isFinite(v)&&v>0?v:0}
+var obj={id:row?row.id:rndHex(),n:row?row.n:nm,asc:g('lbe-asc'),all:g('lbe-all'),srv:g('lbe-srv'),pets:g('lbe-pets'),cash:g('lbe-cash'),t:Date.now()};
+if($('lbe-ovr').checked)obj.ovr=1;
+if($('lbe-hid').checked){obj.hid=1;obj.ovr=1}
+upCmd(['HSET',UP.hash,key,JSON.stringify(obj)]).then(function(){closeLbe();snd('ok');lbPull(true)}).catch(function(){smsg('lbe-msg','Could not reach the online leaderboard.')});
+};
+if(row){var dt;$('lbe-del').onclick=function(){var b=this;
+if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to delete';clearTimeout(dt);dt=setTimeout(function(){delete b.dataset.arm;b.textContent='Delete entry'},4000);return}
+upCmd(['HDEL',UP.hash,k]).then(function(){closeLbe();snd('warn');lbPull(true)}).catch(function(){smsg('lbe-msg','Could not reach the online leaderboard.')})}}
+$('lbe-gate').classList.add('on');snd('open');
+}
 setInterval(function(){if(!$('pg-lb').hidden)lbRender()},2000);
 // ---------- settings ----------
 var LASTSAVE=0,AUD=null;
