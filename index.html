@@ -339,10 +339,7 @@ html.nonews #newscard{display:none}
 <div class="alab">Rarity (base %)</div>
 <div class="ar"><input type="number" id="od-c" min="0" step="any" placeholder="Common"><input type="number" id="od-r" min="0" step="any" placeholder="Rare"><input type="number" id="od-e" min="0" step="any" placeholder="Epic"><input type="number" id="od-l" min="0" step="any" placeholder="Legendary"></div>
 <div id="od-sum" class="hint"></div>
-<div class="alab">Secret pet chance</div>
-<div class="alab" style="margin-top:0">All secret pets together (spread by each pet's default share)</div>
-<div class="ar"><span style="font-weight:800">1 in</span><input type="number" id="od-sec" min="1" step="any" placeholder="e.g. 100000"><span id="od-secv" class="hint" style="margin:0"></span></div>
-<div class="alab">Per secret pet (this tier) - overrides the above for that pet. Leave blank for default</div>
+<div class="alab">Secret pets (this tier) - chance of each from this egg. Leave blank for the default</div>
 <div id="od-pets"></div>
 <div class="ar"><button id="od-save">Save odds</button><button id="od-reset" class="warn">Reset tier to default</button><button id="od-resetall" class="warn">Reset all tiers</button></div>
 <div id="od-msg" class="hint"></div>
@@ -1264,14 +1261,13 @@ if(document.activeElement&&/^od-/.test(document.activeElement.id)&&document.acti
 if(document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.odp!=null)return;
 var sm=w[0]+w[1]+w[2]+w[3];
 ['c','r','e','l'].forEach(function(k,i){$('od-'+k).value=parseFloat((w[i]/sm*100).toFixed(4))});
-$('od-sec').value=sc>=1?sc:Math.round(1/SEC_TIER[t]);
 var ph=ODDS.p[t]||{};
 $('od-pets').innerHTML=SEC.map(function(q,i){return'<div class="ar" style="align-items:center"><span style="flex:1;min-width:120px;font-weight:700">🌟 '+q.n+'</span><span style="font-weight:800">1 in</span><input type="number" min="1" step="any" data-odp="'+i+'" value="'+(ph[i]||'')+'" placeholder="'+Math.round(1/(secBase(t)*q.w/100)).toLocaleString()+'" style="width:130px"></div>'}).join('');
 oddsAdmSum();oddsAdmTable()}
 function oddsAdmSum(){
 var v=['c','r','e','l'].map(function(k){return Math.max(0,parseFloat($('od-'+k).value)||0)}),sm=v[0]+v[1]+v[2]+v[3];
 $('od-sum').textContent=sm>0?'Total entered: '+parseFloat(sm.toFixed(4))+'%'+(Math.abs(sm-100)>1e-6?' → will be scaled to 100%: '+v.map(function(x,i){return RAR[i]+' '+parseFloat((x/sm*100).toFixed(2))+'%'}).join(' · '):' ✓'):'Enter at least one number above 0.';
-var n=parseFloat($('od-sec').value);$('od-secv').textContent=n>=1?'= '+fp(100/n)+'% per hatch':''}
+}
 function oddsAdmTable(){
 var h='<table class="odds"><tr><th>Tier</th><th>Common</th><th>Rare</th><th>Epic</th><th>Leg.</th><th>Secret</th></tr>';
 for(var t=0;t<10;t++){var w=baseW(t),sm=w[0]+w[1]+w[2]+w[3],c=ODDS.w[t]||ODDS.s[t]||ODDS.p[t];
@@ -1283,21 +1279,19 @@ return upCmd(['SET','tt:odds',JSON.stringify(o)]).then(function(){snd('ok');$('o
 (function(){
 var sel=$('od-tier');TN.forEach(function(n,i){sel.insertAdjacentHTML('beforeend','<option value="'+i+'">Tier '+(i+1)+' - '+n+'</option>')});
 sel.onchange=function(){document.activeElement.blur();oddsAdmFill()};
-['c','r','e','l','sec'].forEach(function(k){$('od-'+k).oninput=oddsAdmSum});
+['c','r','e','l'].forEach(function(k){$('od-'+k).oninput=oddsAdmSum});
 $('od-save').onclick=function(){
 if(!ADM_OK)return;
 var v=['c','r','e','l'].map(function(k){return Math.max(0,parseFloat($('od-'+k).value)||0)}),sm=v[0]+v[1]+v[2]+v[3];
 if(!(sm>0)){$('od-msg').textContent='Rarity numbers must add up to more than 0.';return}
-var n=parseFloat($('od-sec').value);
-if(!(n>=1)||n>1e9){$('od-msg').textContent='Secret chance must be 1 in 1 or higher (max 1 in 1,000,000,000).';return}
 var pm={},bad=false;document.querySelectorAll('#od-pets [data-odp]').forEach(function(el){if(el.value==='')return;var q=parseFloat(el.value);if(!(q>=1)||q>1e9)bad=true;else pm[el.dataset.odp]=q});
 if(bad){$('od-msg').textContent='Per-pet chances must be 1 in 1 or higher (max 1 in 1,000,000,000).';return}
 var w=v.map(function(x){return parseFloat((x/sm*100).toFixed(4))});
 w[3]=parseFloat((100-w[0]-w[1]-w[2]).toFixed(4));if(w[3]<0){w[3]=0;w[0]=parseFloat((100-w[1]-w[2]).toFixed(4))}
 var ts=$('od-all').checked?[0,1,2,3,4,5,6,7,8,9]:[odTier()];
-ts.forEach(function(t){ODDS.w[t]=w.slice();ODDS.s[t]=n;if(Object.keys(pm).length)ODDS.p[t]=JSON.parse(JSON.stringify(pm));else delete ODDS.p[t]});
+ts.forEach(function(t){ODDS.w[t]=w.slice();delete ODDS.s[t];if(Object.keys(pm).length)ODDS.p[t]=JSON.parse(JSON.stringify(pm));else delete ODDS.p[t]});
 document.activeElement.blur();oddsAdmFill();
-oddsPublish('Saved for '+(ts.length>1?'all tiers':'tier '+(ts[0]+1))+': '+RAR.slice(0,4).map(function(x,i){return x+' '+w[i]+'%'}).join(' · ')+' | secret 1 in '+n.toLocaleString())};
+oddsPublish('Saved for '+(ts.length>1?'all tiers':'tier '+(ts[0]+1))+': '+RAR.slice(0,4).map(function(x,i){return x+' '+w[i]+'%'}).join(' · ')+(Object.keys(pm).length?' | '+Object.keys(pm).length+' secret pet chance'+(Object.keys(pm).length===1?'':'s')+' set':''))};
 function reset(all){if(!ADM_OK)return;var ts=all?[0,1,2,3,4,5,6,7,8,9]:[odTier()];ts.forEach(function(t){delete ODDS.w[t];delete ODDS.s[t];delete ODDS.p[t]});document.activeElement.blur();oddsAdmFill();oddsPublish('Reset '+(all?'all tiers':'tier '+(ts[0]+1))+' to the default odds.')}
 $('od-reset').onclick=function(){reset(false)};$('od-resetall').onclick=function(){reset(true)};
 oddsAdmFill();
