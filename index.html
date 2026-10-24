@@ -352,8 +352,22 @@ html.nonews #newscard{display:none}
 <div id="au-err" style="color:#ff5a5a;font-weight:700;font-size:.85rem;min-height:1.3em;margin:6px 0"></div>
 <div id="au-diag" style="display:none;color:#ffb347;font-size:.7rem;word-break:break-word;margin:4px 0;font-family:monospace"></div>
 <button class="big" id="au-go" style="width:100%">Create account</button>
+<button class="tab" id="au-forgot" style="display:none;margin:10px auto 0">Forgot password?</button>
 <p class="note" style="margin:12px 0 0;font-size:.72rem;text-align:center">Accounts and saves are stored in this browser on this device.</p>
 <p class="note" id="au-mem" style="margin:6px 0 0;font-size:.72rem;text-align:center;color:#ffb347;display:none">Your browser is blocking storage, so progress will only last until you close this tab.</p>
+</div></div>
+<div class="gate" id="fp-gate" style="z-index:85;background:var(--bg1)"><div class="box" style="max-width:380px">
+<h2 style="margin:0 0 4px">🔑 Forgot password</h2>
+<p class="note" style="margin:0 0 10px">Passwords are never stored in readable form, so nobody can look yours up. Instead the overlord gives you a one-time reset code. This only works on the device where you made the account.</p>
+<div class="afield"><label for="fp-user">Username</label><input id="fp-user" maxlength="16" spellcheck="false" autocomplete="username"></div>
+<div class="alab">Step 1: ask for a code</div>
+<button class="tab" id="fp-req" style="width:100%">Send a reset request to the overlord</button>
+<div class="alab" style="margin-top:12px">Step 2: enter the code you were given</div>
+<div class="afield"><label for="fp-code">Reset code</label><input id="fp-code" maxlength="14" spellcheck="false" autocomplete="off"></div>
+<div class="afield"><label for="fp-pw">New password</label><input type="password" id="fp-pw" autocomplete="new-password"></div>
+<div class="afield"><label for="fp-pw2">Confirm new password</label><input type="password" id="fp-pw2" autocomplete="new-password"></div>
+<div id="fp-msg" style="font-weight:700;font-size:.85rem;min-height:1.3em;margin:6px 0"></div>
+<div style="display:flex;gap:8px;justify-content:space-between"><button class="tab" id="fp-back">Back</button><button class="big" id="fp-go">Reset password</button></div>
 </div></div>
 <script>
 window.__ttErrs=[];
@@ -1297,6 +1311,7 @@ function authMode(m){
 AUTHMODE=m;
 $('au-tab-su').classList.toggle('on',m==='signup');$('au-tab-li').classList.toggle('on',m==='login');
 $('au-conf-row').style.display=m==='signup'?'':'none';
+$('au-forgot').style.display=m==='login'?'':'none';
 $('au-go').textContent=m==='signup'?'Create account':'Log in';
 $('au-pw').autocomplete=m==='signup'?'new-password':'current-password';
 $('au-err').textContent='';
@@ -1324,6 +1339,39 @@ login(k);
 $('au-tab-su').onclick=function(){authMode('signup')};
 $('au-tab-li').onclick=function(){authMode('login')};
 $('au-go').onclick=function(){try{authSubmit()}catch(e){var d=$('au-diag');d.style.display='block';d.textContent='Login error: '+(e&&e.message||e)}};
+var RSK='tt:resets',RSLIFE=1800000;
+function fpMsg(t,ok){var e=$('fp-msg');e.textContent=t;e.style.color=ok?'#3ddc97':'#ff5a5a';if(t)snd(ok?'ok':'error')}
+$('au-forgot').onclick=function(){$('fp-user').value=$('au-user').value.trim();['fp-code','fp-pw','fp-pw2'].forEach(function(i){$(i).value=''});fpMsg('');$('fp-gate').classList.add('on')};
+$('fp-back').onclick=function(){$('fp-gate').classList.remove('on')};
+$('fp-req').onclick=function(){
+var u=$('fp-user').value.trim(),k=u.toLowerCase();
+if(!/^[A-Za-z0-9_]{3,16}$/.test(u))return fpMsg('Enter your username first.');
+if(k===ADMIN_KEY)return fpMsg('The overlord account cannot be reset this way.');
+if(!getAccts()[k])return fpMsg('There is no account called '+u+' on this device. Reset codes only work on the device where the account was made.');
+upCmd(['HGET',RSK,k]).then(function(v){
+var o=null;try{o=v?JSON.parse(v):null}catch(e){}
+if(o&&o.st==='ok'&&Date.now()-o.t<RSLIFE){fpMsg('A reset code is already waiting for you. Ask the overlord for it.',true);return}
+return upCmd(['HSET',RSK,k,JSON.stringify({st:'req',t:Date.now()})]).then(function(){fpMsg('Request sent. Ask the overlord for your reset code, then enter it below.',true)});
+}).catch(function(){fpMsg('Could not reach the online server. Try again later.')});
+};
+$('fp-go').onclick=function(){
+var u=$('fp-user').value.trim(),k=u.toLowerCase(),code=$('fp-code').value.replace(/[^A-Za-z0-9]/g,'').toUpperCase(),pw=$('fp-pw').value,A=getAccts();
+if(!A[k]||k===ADMIN_KEY)return fpMsg('There is no account called '+u+' on this device.');
+if(code.length<8)return fpMsg('Enter the reset code from the overlord.');
+if(pw.length<6)return fpMsg('Password must be at least 6 characters.');
+if(pw!==$('fp-pw2').value)return fpMsg('Passwords do not match.');
+upCmd(['HGET',RSK,k]).then(function(v){
+var o=null;try{o=v?JSON.parse(v):null}catch(e){}
+if(!o||o.st!=='ok'||Date.now()-o.t>RSLIFE)return fpMsg('That code is wrong or has expired. Ask the overlord for a new one.');
+if((o.tries||0)>=5)return fpMsg('Too many wrong tries. Ask the overlord for a new code.');
+if(sha256(o.salt+':'+code)!==o.ch){o.tries=(o.tries||0)+1;return upCmd(['HSET',RSK,k,JSON.stringify(o)]).then(function(){fpMsg('That code is wrong or has expired. '+(5-o.tries)+' tries left.')})}
+var salt=rndHex();A[k].salt=salt;A[k].hash=hashPw(salt,pw);setAccts(A);
+return upCmd(['HDEL',RSK,k]).catch(function(){}).then(function(){
+fpMsg('Password changed! You can log in now.',true);
+setTimeout(function(){$('fp-gate').classList.remove('on');authMode('login');$('au-user').value=u;$('au-pw').value='';$('au-err').textContent=''},1200);
+});
+}).catch(function(){fpMsg('Could not reach the online server. Try again later.')});
+};
 ['au-user','au-pw','au-pw2'].forEach(function(id){$(id).addEventListener('keydown',function(e){if(e.key==='Enter')authSubmit()})});
 $('logout').onclick=logout;
 // ---------- online leaderboard (Upstash Redis REST) ----------
@@ -1433,7 +1481,9 @@ var ie=$('lb-int');if(ie&&document.activeElement!==ie&&+ie.value!==LBON.int/60)i
 $('lb-intset').onclick=function(){setLbInt(+$('lb-int').value)};
 lbCfg();setInterval(lbCfg,60000);
 var LBSORT='rank',LBORD=['asc','all','srv','cash'],LBCOLS=[['asc','🌌 Ascension'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
+var LBROWS=[],LBHOLD=0;
 function lbRender(){
+if(LBHOLD)return;
 if(ACC)saveNow();
 if(!LBON.rows)lbPull();
 var A=getAccts(),rows,MEK=ACC;
@@ -1452,16 +1502,21 @@ rk.forEach(function(r,i){pl[r.k]=i>0&&cmpRank(rk[i-1],r)===0?pl[rk[i-1].k]:i+1})
 rows.sort(function(x,y){return(LBSORT==='rank'?0:(y[LBSORT]||0)-(x[LBSORT]||0))||cmpRank(x,y)});
 var h='<tr><th data-sort="rank" class="'+(LBSORT==='rank'?'sorted':'')+'" title="Overall place">Place'+(LBSORT==='rank'?' ▼':'')+'</th><th style="text-align:left">Player</th>'+LBCOLS.map(function(c){return'<th data-sort="'+c[0]+'" class="'+(LBSORT===c[0]?'sorted':'')+'">'+c[1]+(LBSORT===c[0]?' ▼':'')+'</th>'}).join('')+(ADM_OK?'<th>🛡️</th>':'')+'</tr>';
 rows.forEach(function(r,i){
-h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(r.hid?'—':(['🥇','🥈','🥉'][pl[r.k]-1]||pl[r.k]))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbe="'+encodeURIComponent(r.k)+'">✏️ Entry</button> <button class="tab" data-lbv="'+encodeURIComponent(r.k)+'">👁 View</button> <button class="tab" data-lbp="'+encodeURIComponent(r.k)+'">🎮 Player</button></td>':'')+'</tr>'});
-$('lb-table').innerHTML=h;
+h+='<tr class="'+(r.k===MEK?'me':'')+'"><td>'+(r.hid?'—':(['🥇','🥈','🥉'][pl[r.k]-1]||pl[r.k]))+'</td><td style="text-align:left">'+String(r.n).replace(/[&<>"]/g,'')+(r.k===MEK?' <small>(you)</small>':'')+(ADM_OK&&r.hid?' <small>(hidden)</small>':'')+(ADM_OK&&r.ovr?' <small>🔒</small>':'')+'</td><td>'+r.asc+'</td><td>'+r.all.toLocaleString()+'</td><td>'+r.srv.toLocaleString()+'</td><td>'+r.pets.toLocaleString()+'</td><td>'+fmt(r.cash)+'</td>'+(ADM_OK?'<td><button class="tab" data-lbm="'+encodeURIComponent(r.k)+'">🛡️ Mod</button></td>':'')+'</tr>'});
+LBROWS=rows;$('lb-table').innerHTML=h;
 $('lb-count').textContent=rows.length+' player'+(rows.length===1?'':'s');
 var note='🌐 Online leaderboard: ranks players from every device and refreshes every '+lbIntTxt()+'. Place is decided by: 1) Ascensions, 2) Prestiges, 3) Customers served, 4) Cash. Players who tie on all four share a place. Click a column to re-sort the table (places stay the same).';
 if(!LBON.rows)note='Connecting to the online leaderboard… showing this device only for now.';
 if(LBON.err)note='⚠️ '+LBON.err+(LBON.rows?' Showing the last list we got.':' Showing this device only.');
 if(LBON.conflict)note+=' Another player already uses your username online, so your scores are not being posted. Make a new account with a different name.';
 $('lb-note').textContent=note}
-$('lb-table').addEventListener('click',function(e){var eb=e.target.closest('button[data-lbe]');if(eb){openLbEdit(decodeURIComponent(eb.dataset.lbe));return}var vb=e.target.closest('button[data-lbv]');if(vb){viewLoad(decodeURIComponent(vb.dataset.lbv));return}var pb=e.target.closest('button[data-lbp]');if(pb){openPlEdit(decodeURIComponent(pb.dataset.lbp));return}var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
+$('lb-table').addEventListener('click',function(e){var mb=e.target.closest('button[data-lbm]');if(mb){openMod(decodeURIComponent(mb.dataset.lbm));return}var eb=e.target.closest('button[data-lbe]');if(eb){openLbEdit(decodeURIComponent(eb.dataset.lbe));return}var vb=e.target.closest('button[data-lbv]');if(vb){viewLoad(decodeURIComponent(vb.dataset.lbv));return}var pb=e.target.closest('button[data-lbp]');if(pb){openPlEdit(decodeURIComponent(pb.dataset.lbp));return}var th=e.target.closest('th[data-sort]');if(th){LBSORT=th.dataset.sort;lbRender()}});
 var EDK='tt:edits';
+$('lb-table').addEventListener('mousedown',function(){LBHOLD=1;setTimeout(function(){LBHOLD=0},3000)});
+$('lb-table').addEventListener('touchstart',function(){LBHOLD=1;setTimeout(function(){LBHOLD=0},3000)},{passive:true});
+document.addEventListener('mouseup',function(){LBHOLD=0},true);
+document.addEventListener('touchend',function(){LBHOLD=0},true);
+document.addEventListener('touchcancel',function(){LBHOLD=0},true);
 function openPlEdit(k){
 if(!ADM_OK)return;
 var row=(LBON.rows||[]).filter(function(r){return r.k===k})[0];if(!row)return;
@@ -1590,6 +1645,66 @@ var lid=(getAccts()[me]||{}).lid;
 if(n===1&&e&&(!e.id||e.id===lid)&&ACC===me)applyEdit(e)})}).catch(function(){})}
 setInterval(edPoll,20000);
 function closeLbe(){$('lbe-gate').classList.remove('on')}
+function openMod(k){
+if(!ADM_OK)return;
+var row=(LBON.rows||[]).filter(function(r){return r.k===k})[0]||LBROWS.filter(function(r){return r.k===k})[0];
+if(!row){alert('Could not find that player. Press Refresh and try again.');return}
+var online=!!LBON.rows;
+var nm=String(row.n).replace(/[^A-Za-z0-9_]/g,''),A=getAccts(),loc=A[k];
+function line(l,v,id){return'<div class="srow" style="align-items:flex-start"><div><b>'+l+'</b></div><div style="text-align:right;font-size:.88rem;max-width:62%"'+(id?' id="'+id+'"':'')+'>'+v+'</div></div>'}
+var flags=[row.ovr?'🔒 frozen':'',row.hid?'🙈 hidden':''].filter(Boolean).join(' · ')||'normal';
+$('lbe-body').innerHTML='<h2 style="margin:0 0 4px">🛡️ Mod: '+nm+'</h2><p class="note" style="margin:0 0 8px">Account details and moderation tools for this player.</p>'
++line('Username',nm)+line('Account ID',k)
++line('Leaderboard',row.asc+' ascensions · '+row.all.toLocaleString()+' prestiges · '+row.srv.toLocaleString()+' customers · '+row.pets.toLocaleString()+' pets · '+fmt(row.cash))
++line('Entry status',flags)
++(loc&&loc.created?line('Account created (this device)',new Date(loc.created).toLocaleString()):'')
++line('Online save','Loading...','mod-save')+line('Waiting edit','Checking...','mod-edit')
++line('Password reset','Checking...','mod-reset')
++(online?'':'<p class="note" style="color:#c0392b;margin:8px 0 0">Not connected to the online server right now, so editing and resetting are unavailable. Close this, press Refresh, and try again.</p>')
++'<div class="alab" style="margin-top:12px">Moderation</div>'
++'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="tab" id="mod-view">👁 View account</button><button class="tab" id="mod-entry">✏️ Edit leaderboard entry</button><button class="tab" id="mod-player">🎮 Edit player and reset</button><button class="tab" id="mod-rcode">🔑 Create password reset code</button><button class="tab" id="mod-rcancel" hidden>✖ Cancel reset</button></div>'
++'<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="tab" id="lbe-x">Close</button></div>';
+$('lbe-gate').classList.add('on');
+$('lbe-x').onclick=closeLbe;
+if(!online){$('mod-entry').disabled=true;$('mod-player').disabled=true}
+$('mod-view').onclick=function(){closeLbe();viewLoad(k)};
+function rcode(){var a='ABCDEFGHJKMNPQRSTUVWXYZ23456789',b=new Uint8Array(10),o='',i;try{crypto.getRandomValues(b)}catch(e){for(i=0;i<10;i++)b[i]=Math.floor(Math.random()*256)}for(i=0;i<10;i++)o+=a[b[i]%a.length];return o}
+function rstat(){
+upCmd(['HGET',RSK,k]).then(function(v){
+var el=$('mod-reset');if(!el)return;
+var o=null;try{o=v?JSON.parse(v):null}catch(e){}
+$('mod-rcancel').hidden=!o;
+if(!o)el.textContent='No reset requested';
+else if(o.st==='req')el.textContent='Requested '+agoTxt(o.t)+'. Create a code and give it to them.';
+else el.textContent=(Date.now()-o.t<RSLIFE)?'A code is active ('+Math.max(1,Math.round((RSLIFE-(Date.now()-o.t))/60000))+' min left). Create a new one if you lost it.':'Last code expired';
+}).catch(function(){var el=$('mod-reset');if(el)el.textContent='Could not reach the online server.'});
+}
+rstat();
+$('mod-rcode').onclick=function(){
+var code=rcode(),salt=rndHex();
+upCmd(['HSET',RSK,k,JSON.stringify({st:'ok',t:Date.now(),salt:salt,ch:sha256(salt+':'+code),tries:0})]).then(function(){
+var el=$('mod-reset');if(!el)return;
+el.innerHTML='Give this code to <b>'+nm+'</b> privately. It works once and expires in 30 minutes.<br><span style="display:inline-block;margin-top:4px;font-size:1.15rem;font-weight:800;letter-spacing:.12em;user-select:all">'+code.slice(0,5)+' '+code.slice(5)+'</span>';
+$('mod-rcancel').hidden=false;snd('ok');
+}).catch(function(){var el=$('mod-reset');if(el)el.textContent='Could not reach the online server.'});
+};
+$('mod-rcancel').onclick=function(){upCmd(['HDEL',RSK,k]).then(function(){var el=$('mod-reset');if(el)el.textContent='Reset cancelled';$('mod-rcancel').hidden=true}).catch(function(){})};
+$('mod-entry').onclick=function(){openLbEdit(k)};
+$('mod-player').onclick=function(){openPlEdit(k)};
+upCmd(['HGET',SVK,k]).then(function(v){
+var el=$('mod-save');if(!el)return;
+var o=null,q=null;try{o=v?JSON.parse(v):null;q=o&&o.s?JSON.parse(o.s):null}catch(e){}
+if(!q){el.textContent=loc?'None online yet (this device has a copy)':'None online yet. They need to play for a couple of minutes on the newest version.';return}
+var P2=q.pets||{inv:[],eq:[]};
+el.innerHTML='Saved '+agoTxt(o.t)+'<br>Tier '+((q.unlocked||0)+1)+' · '+(q.toilets||1)+' toilets · '+fmt(q.cash||0)+'<br>Prestige points '+((q.p&&q.p.pts)||0)+' · runs '+((q.p&&q.p.runs)||0)+'<br>'+(P2.inv||[]).length+' pets ('+(P2.eq||[]).length+' equipped)';
+}).catch(function(){var el=$('mod-save');if(el)el.textContent='Could not reach the online server.'});
+upCmd(['HGET',EDK,k]).then(function(v){
+var el=$('mod-edit');if(!el)return;
+if(!v){el.textContent='None';return}
+var o=null;try{o=JSON.parse(v)}catch(e){}
+el.textContent=o&&o.rs?'Reset ('+o.rs+') waiting for them to log in':'An edit is waiting for them to log in';
+}).catch(function(){var el=$('mod-edit');if(el)el.textContent='Unknown'});
+}
 $('lbe-gate').addEventListener('click',function(e){if(e.target===this)closeLbe()});
 $('lb-add').onclick=function(){openLbEdit(null)};
 $('lb-ref').onclick=function(){lbPull(true)};
