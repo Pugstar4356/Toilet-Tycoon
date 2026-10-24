@@ -287,6 +287,10 @@ html.nonews #newscard{display:none}
 <div class="shop"><div class="ico">⚡</div><div><b id="up-spd-nm"></b><small id="up-spd-ds"></small></div><button class="buy" data-pa="upspd" id="up-spd"></button></div>
 <div class="shop"><div class="ico">🐾</div><div><b id="up-eq-nm"></b><small id="up-eq-ds"></small></div><button class="buy" data-pa="upeq" id="up-eq"></button></div>
 <div class="shop"><div class="ico">📦</div><div><b id="up-sto-nm"></b><small id="up-sto-ds"></small></div><button class="buy" data-pa="upsto" id="up-sto"></button></div></section>
+<section class="card sec" data-pt="hatch"><div class="ttl"><h2>♻️ Auto release</h2><label class="sw" title="Turn auto release on or off"><input type="checkbox" id="ar-on"><i></i></label></div>
+<p class="note" style="margin-top:0">Pets that match any rule below are released the moment they hatch, and you get their release cash. A rule matches a pet when its rarity is ticked <b>and</b> its boost is ticked (no boosts ticked = any boost). Secret pets and locked pets are never auto-released.</p>
+<div id="ar-rules"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="tab" id="ar-add">➕ Add rule</button><button class="tab" id="ar-now"></button></div></section>
 <section class="card sec" data-pt="hatch"><div class="ttl"><h2>🥚 Egg shop</h2><span class="lvl">Egg tier matches room tier</span></div><p class="note" style="margin-top:0">Rarity odds are set per egg tier (tap Odds on an egg to see them). Higher tier eggs give stronger pets. 🍀 Each egg tier has its own Luck upgrade that improves its rarity odds (secret pets are never affected by luck). 🌟 Secret pets are insanely rare from Tier 1 eggs and get easier to find with every egg tier. Pets survive prestige but are lost when you ascend.</p><div class="pgrid" id="pet-shop"></div></section>
 <section class="card sec" data-pt="pets"><div class="ttl"><h2>🐶 Your pets</h2><span class="lvl" id="inv-count"></span></div><div class="pgrid" id="pet-inv"></div></section>
 </div>
@@ -900,7 +904,7 @@ var PTY=['money','speed','tips','mess','vip'];
 var PBASE={money:.15,speed:.15,tips:.25,mess:.03,vip:.04};
 var PEM={money:'💰',speed:'🏃',tips:'💸',mess:'🧴',vip:'👑'};
 var PNAME={money:'Money',speed:'Customers',tips:'Tips',mess:'Messes',vip:'VIP chance'};
-function PT(){var p=S.pets;if(!p||typeof p!=='object')p=S.pets={};p.inv=p.inv||[];p.inc=p.inc||[];p.eq=p.eq||[];p.n=p.n||0;p.xs=p.xs||0;p.xe=p.xe||0;p.us=p.us||0;p.uh=p.uh||0;p.ue=p.ue||0;p.sv=p.sv||0;p.disc=p.disc||[];p.lk=p.lk||[];return p}
+function PT(){var p=S.pets;if(!p||typeof p!=='object')p=S.pets={};p.inv=p.inv||[];p.inc=p.inc||[];p.eq=p.eq||[];p.n=p.n||0;p.xs=p.xs||0;p.xe=p.xe||0;p.us=p.us||0;p.uh=p.uh||0;p.ue=p.ue||0;p.sv=p.sv||0;p.disc=p.disc||[];p.lk=p.lk||[];if(!p.auto||typeof p.auto!=='object')p.auto={on:0,rules:[]};if(!Array.isArray(p.auto.rules))p.auto.rules=[];return p}
 function petOf(id){var inv=PT().inv,i;for(i=0;i<inv.length;i++)if(inv[i].id===id)return inv[i];return null}
 var SEC=[
 {n:'Golden Plunger God',c:'#ffd23f',b2:'#fff3a8',k:'crown',w:50,b:{money:6,tips:3}},
@@ -1002,12 +1006,38 @@ var P=PT(),c=eggCost(t);
 if(t>S.unlocked||P.inc.length>=incSlots()||S.cash<c)return;
 S.cash-=c;var now=Date.now();P.inc.push({t:t,s:now,at:now+hatchSec(t)*1000});
 }
+function autoMatch(p){var A=PT().auto;if(!A.on||p.sec!=null||p.lock)return false;return A.rules.some(function(q){return q.r&&q.r[p.r]&&(!q.ty||!q.ty.length||q.ty.indexOf(p.ty)>=0)})}
+function autoList(){var P=PT();return P.inv.filter(function(p){return P.eq.indexOf(p.id)<0&&autoMatch(p)})}
+function autoRender(){
+var A=PT().auto,h='';
+$('ar-on').checked=!!A.on;
+A.rules.forEach(function(q,i){
+h+='<div class="nrow" data-ri="'+i+'"><div style="display:flex;justify-content:space-between;align-items:center"><b>Rule '+(i+1)+'</b><button class="tab" data-ar="del">🗑️ Remove</button></div>'
++'<div class="chips" style="margin:6px 0">'+RAR.slice(0,4).map(function(n,r){return'<label class="chip'+(q.r[r]?' on':'')+'" style="cursor:pointer;color:'+RCOL[r]+'"><input type="checkbox" data-ar="r" data-v="'+r+'" '+(q.r[r]?'checked':'')+' style="display:none">'+n+'</label>'}).join('')+'</div>'
++'<div class="chips">'+PTY.map(function(ty){var on=q.ty.indexOf(ty)>=0;return'<label class="chip'+(on?' on':'')+'" style="cursor:pointer"><input type="checkbox" data-ar="t" data-v="'+ty+'" '+(on?'checked':'')+' style="display:none">'+PEM[ty]+' '+PNAME[ty]+'</label>'}).join('')+'</div>'
++'<small>'+(q.r.some(function(x){return x})?'Releases '+q.r.map(function(x,r){return x?RAR[r]:''}).filter(Boolean).join(', ')+' pets giving '+(q.ty.length?q.ty.map(function(t){return PNAME[t]}).join(' or '):'any boost'):'⚠ Tick at least one rarity or this rule does nothing')+'</small></div>'});
+$('ar-rules').innerHTML=h||'<p class="note" style="margin:0">No rules yet. Add one, for example: Common + Rare, with VIP chance ticked.</p>';
+var L=autoList(),v=0;L.forEach(function(p){v+=relVal(p)});
+$('ar-now').disabled=!L.length;$('ar-now').textContent=L.length?'Release '+L.length+' matching pet'+(L.length===1?'':'s')+' now ('+fmt(v)+')':'No current pets match';
+}
+$('ar-on').onchange=function(){PT().auto.on=this.checked?1:0;autoRender();saveNow()};
+$('ar-add').onclick=function(){PT().auto.rules.push({r:[1,0,0,0],ty:[]});autoRender();saveNow()};
+$('ar-rules').addEventListener('click',function(e){
+var el=e.target.closest('[data-ar]');if(!el)return;var row=e.target.closest('[data-ri]'),A=PT().auto,i=row?+row.dataset.ri:-1,q=A.rules[i];if(!q)return;
+if(el.dataset.ar==='del'){A.rules.splice(i,1)}
+else if(el.tagName==='INPUT'){var v=el.dataset.v;if(el.dataset.ar==='r')q.r[+v]=el.checked?1:0;else{var ix=q.ty.indexOf(v);if(el.checked&&ix<0)q.ty.push(v);if(!el.checked&&ix>=0)q.ty.splice(ix,1)}}
+else return;
+autoRender();saveNow()});
+$('ar-now').onclick=function(){var b=this,L=autoList();if(!L.length)return;
+if(!b.dataset.arm){b.dataset.arm=1;b.textContent='Click again to release '+L.length;setTimeout(function(){delete b.dataset.arm;autoRender()},4000);return}
+delete b.dataset.arm;var c=releaseIds(L.map(function(p){return p.id}));news('♻️ Auto-released '+L.length+' pets for '+fmt(c));PK={};petsRender();autoRender();render();saveNow()};
 function hatch(i){
 var P=PT(),e=P.inc[i];if(!e||Date.now()<e.at)return;
 if(P.inv.length>=stoCap()){snd('error');$('reveal').innerHTML='<div style="text-align:center;font-weight:800;color:#ff5a5a">📦 Pet storage is full ('+P.inv.length+'/'+stoCap()+')! Release pets or upgrade your storage to hatch this egg.</div>';news('📦 Pet storage is full! Release pets or upgrade storage.');return}
 P.inc.splice(i,1);var pet,sc=FORCESEC||Math.random()<secCh(e.t);
 if(sc){var tt=0,pw=SEC.map(function(q,j){var x=secPP(e.t,j);tt+=x;return x}),r=Math.random()*tt,k=0,ac=0;for(var j=0;j<pw.length;j++){ac+=pw[j];if(r<ac){k=j;break}}pet=newSec(k,e.t)}
 else pet=newPet(e.t,rollRar(e.t));
+if(!sc&&autoMatch(pet)){var got=releaseIds([pet.id]);$('reveal').innerHTML='<div style="text-align:center;font-weight:800">♻️ Auto-released a '+petName(pet)+' ('+petTxt(pet)+') for '+fmt(got)+'</div>';snd('release');news('♻️ Auto-released '+petName(pet)+' (+'+fmt(got)+')');return}
 $('reveal').innerHTML='<div style="text-align:center;font-weight:800;margin-bottom:8px">'+(sc?'🌟🌟 SECRET PET!!! You hatched '+petName(pet)+'! 🌟🌟':'🎉 You hatched a '+petName(pet)+'!')+'</div>'+petCard(pet,false);
 snd(sc?'secret':'hatch');news((sc?'🌟 SECRET PET! ':'🥚 Hatched a ')+petName(pet)+' ('+petTxt(pet)+')');
 }
@@ -1172,7 +1202,7 @@ function showPage(n,quiet){
 if(!quiet)snd('nav');
 $('pg-game').hidden=n!==0;$('pg-pets').hidden=n!==1;$('pg-lb').hidden=n!==2;$('pg-set').hidden=n!==3;$('pg-nerd').hidden=n!==4;
 $('nav-game').classList.toggle('on',n===0);$('nav-pets').classList.toggle('on',n===1);$('nav-lb').classList.toggle('on',n===2);$('nav-set').classList.toggle('on',n===3);$('nav-nerd').classList.toggle('on',n===4);
-if(n===1){PK={};ptabApply();petsRender()}
+if(n===1){PK={};ptabApply();petsRender();autoRender()}
 if(n===4)nerdRender();
 if(n===2)lbRender();
 if(n===3)setRender();
