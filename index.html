@@ -287,7 +287,7 @@ html.nonews #newscard{display:none}
 <div class="shop"><div class="ico">⚡</div><div><b id="up-spd-nm"></b><small id="up-spd-ds"></small></div><button class="buy" data-pa="upspd" id="up-spd"></button></div>
 <div class="shop"><div class="ico">🐾</div><div><b id="up-eq-nm"></b><small id="up-eq-ds"></small></div><button class="buy" data-pa="upeq" id="up-eq"></button></div>
 <div class="shop"><div class="ico">📦</div><div><b id="up-sto-nm"></b><small id="up-sto-ds"></small></div><button class="buy" data-pa="upsto" id="up-sto"></button></div></section>
-<section class="card sec" data-pt="hatch"><div class="ttl"><h2>🥚 Egg shop</h2><span class="lvl">Egg tier matches room tier</span></div><p class="note" style="margin-top:0">Base odds: Common 60% · Rare 28% · Epic 10% · Legendary 2%. Higher tier eggs give stronger pets. 🍀 Each egg tier has its own Luck upgrade that improves its rarity odds (secret pets are never affected by luck). 🌟 Secret pets are insanely rare from Tier 1 eggs and get easier to find with every egg tier. Pets survive prestige but are lost when you ascend.</p><div class="pgrid" id="pet-shop"></div></section>
+<section class="card sec" data-pt="hatch"><div class="ttl"><h2>🥚 Egg shop</h2><span class="lvl">Egg tier matches room tier</span></div><p class="note" style="margin-top:0">Rarity odds are set per egg tier (tap Odds on an egg to see them). Higher tier eggs give stronger pets. 🍀 Each egg tier has its own Luck upgrade that improves its rarity odds (secret pets are never affected by luck). 🌟 Secret pets are insanely rare from Tier 1 eggs and get easier to find with every egg tier. Pets survive prestige but are lost when you ascend.</p><div class="pgrid" id="pet-shop"></div></section>
 <section class="card sec" data-pt="pets"><div class="ttl"><h2>🐶 Your pets</h2><span class="lvl" id="inv-count"></span></div><div class="pgrid" id="pet-inv"></div></section>
 </div>
 <section class="card" id="admin" hidden style="margin-top:16px">
@@ -331,6 +331,23 @@ html.nonews #newscard{display:none}
 <div class="ar"><input type="number" id="a-lbint" value="5" min="0.5" step="0.5"><button data-a="lbInt">Set update interval (minutes)</button></div>
 <div class="alab">Entries</div>
 <div class="ar"><button data-a="lbOpen">Open leaderboard</button><button data-a="lbAdd" class="alt">Add entry</button><button data-a="lbRefresh" class="alt">Refresh</button></div>
+</fieldset>
+<fieldset><legend>Egg odds</legend>
+<p class="hint">Changes the hatch odds for every player. Rarity percentages are scaled to add up to exactly 100% automatically. Luck upgrades still boost Rare, Epic and Legendary on top of these. Players get the change within about 30 seconds.</p>
+<div class="alab">Egg tier</div>
+<div class="ar"><select id="od-tier"></select><label style="display:flex;gap:6px;align-items:center;font-weight:700"><input type="checkbox" id="od-all"> Apply to all tiers</label></div>
+<div class="alab">Rarity (base %)</div>
+<div class="ar"><input type="number" id="od-c" min="0" step="any" placeholder="Common"><input type="number" id="od-r" min="0" step="any" placeholder="Rare"><input type="number" id="od-e" min="0" step="any" placeholder="Epic"><input type="number" id="od-l" min="0" step="any" placeholder="Legendary"></div>
+<div id="od-sum" class="hint"></div>
+<div class="alab">Secret pet chance</div>
+<div class="alab" style="margin-top:0">All secret pets together (spread by each pet's default share)</div>
+<div class="ar"><span style="font-weight:800">1 in</span><input type="number" id="od-sec" min="1" step="any" placeholder="e.g. 100000"><span id="od-secv" class="hint" style="margin:0"></span></div>
+<div class="alab">Per secret pet (this tier) - overrides the above for that pet. Leave blank for default</div>
+<div id="od-pets"></div>
+<div class="ar"><button id="od-save">Save odds</button><button id="od-reset" class="warn">Reset tier to default</button><button id="od-resetall" class="warn">Reset all tiers</button></div>
+<div id="od-msg" class="hint"></div>
+<div class="alab">Current odds, all tiers</div>
+<div id="od-table" style="overflow-x:auto"></div>
 </fieldset>
 <fieldset><legend>Save data</legend>
 <textarea id="a-save" placeholder="Export your save here, or paste one to import"></textarea>
@@ -881,6 +898,7 @@ var PETS=[
 {n:'Alien Blob',c:'#7fd66b',b:'#d3f5c8',e:'alien'},{n:'Cosmic Dragon',c:'#8a5be0',b:'#d9c6ff',e:'dragon'}];
 var EC=[['#f2e9d0','#c9b27a'],['#f6c1d8','#e0679b'],['#cfe3f2','#6b9cc7'],['#f6e39a','#e0b42a'],['#9fb6e8','#4a62b8'],['#9fe0d4','#3fae9c'],['#e6e8fa','#a9aee0'],['#f2a58a','#d4572e'],['#a8e0a0','#52b848'],['#b9a2f0','#7a52d0']];
 var RAR=['Common','Rare','Epic','Legendary','SECRET'],RM=[1,2,3.5,6],RCH=[60,28,10,2];
+var ODDS={w:{},s:{},p:{}}; // Overlord overrides, shared online: w[tier]=[common,rare,epic,legendary] (sums to 100), s[tier]=N for a 1-in-N secret chance
 var PTY=['money','speed','tips','mess','vip'];
 var PBASE={money:.15,speed:.15,tips:.25,mess:.03,vip:.04};
 var PEM={money:'💰',speed:'🏃',tips:'💸',mess:'🧴',vip:'👑'};
@@ -921,8 +939,11 @@ function lkLvl(t){return PT().lk[t]||0}
 function lkMul(t){return 1+0.3*lkLvl(t)}
 function lkCost(t,l){return Math.round(150*TMUL[t]*Math.pow(3,l))}
 var SEC_TIER=[0.00001,0.000025,0.00006,0.00014,0.00033,0.00077,0.0018,0.0042,0.0098,0.02]; // Tier 1 = 1 in 100,000 ... Tier 10 = 1 in 50, never affected by luck
-function secCh(t){return SEC_TIER[Math.max(0,Math.min(9,t))]}
-function rarW(t){var m=lkMul(t);return[RCH[0],RCH[1]*m,RCH[2]*m,RCH[3]*m]}
+function secBase(t){t=Math.max(0,Math.min(9,t));var n=ODDS.s[t];return n>=1?1/n:SEC_TIER[t]}
+function secPP(t,i){t=Math.max(0,Math.min(9,t));var o=ODDS.p[t],n=o&&o[i];return n>=1?1/n:secBase(t)*SEC[i].w/100}
+function secCh(t){var a=0;for(var i=0;i<SEC.length;i++)a+=secPP(t,i);return Math.min(1,a)}
+function baseW(t){var w=ODDS.w[t];return w&&w.length===4?w:RCH}
+function rarW(t){var m=lkMul(t),b=baseW(t);return[b[0],b[1]*m,b[2]*m,b[3]*m]}
 function rarProbs(t){var w=rarW(t),sm=w[0]+w[1]+w[2]+w[3],ps=secCh(t);return w.map(function(x){return x/sm*(1-ps)*100})}
 function rollRar(t){var w=rarW(t),sm=w[0]+w[1]+w[2]+w[3],r=Math.random()*sm,i,a=0;for(i=0;i<4;i++){a+=w[i];if(r<a)return i}return 0}
 function newPet(t,r,ty){var P=PT();var pet={id:++P.n,t:t,r:r,ty:ty||PTY[Math.floor(Math.random()*PTY.length)]};P.inv.push(pet);return pet}
@@ -988,14 +1009,16 @@ function hatch(i){
 var P=PT(),e=P.inc[i];if(!e||Date.now()<e.at)return;
 if(P.inv.length>=stoCap()){snd('error');$('reveal').innerHTML='<div style="text-align:center;font-weight:800;color:#ff5a5a">📦 Pet storage is full ('+P.inv.length+'/'+stoCap()+')! Release pets or upgrade your storage to hatch this egg.</div>';news('📦 Pet storage is full! Release pets or upgrade storage.');return}
 P.inc.splice(i,1);var pet,sc=FORCESEC||Math.random()<secCh(e.t);
-if(sc){var r=Math.random()*100,k=0,ac=0;SEC.forEach(function(q,j){ac+=q.w;if(r>=ac-q.w&&r<ac)k=j});pet=newSec(k,e.t)}
+if(sc){var tt=0,pw=SEC.map(function(q,j){var x=secPP(e.t,j);tt+=x;return x}),r=Math.random()*tt,k=0,ac=0;for(var j=0;j<pw.length;j++){ac+=pw[j];if(r<ac){k=j;break}}pet=newSec(k,e.t)}
 else pet=newPet(e.t,rollRar(e.t));
 $('reveal').innerHTML='<div style="text-align:center;font-weight:800;margin-bottom:8px">'+(sc?'🌟🌟 SECRET PET!!! You hatched '+petName(pet)+'! 🌟🌟':'🎉 You hatched a '+petName(pet)+'!')+'</div>'+petCard(pet,false);
 snd(sc?'secret':'hatch');news((sc?'🌟 SECRET PET! ':'🥚 Hatched a ')+petName(pet)+' ('+petTxt(pet)+')');
 }
 function fp(x){return x>=1?String(parseFloat(x.toFixed(2))):String(parseFloat(x.toPrecision(2)))}
 function oneIn(pp){return '1 in '+Math.round(100/pp).toLocaleString()}
+var OSHOW=null;
 function showOdds(t){
+OSHOW=t;
 var ps=secCh(t),pr=rarProbs(t),P=PT(),h,r;
 h='<h2 style="margin:0 0 4px">🥚 Tier '+(t+1)+' egg odds</h2><p class="note" style="margin:0 0 12px">'+TN[t]+' · hatches a <b>'+PETS[t].n+'</b> with a random rarity and boost. · 🍀 Luck '+lkLvl(t)+'/'+LK_MAX+'</p>';
 h+='<table class="odds"><tr><th>Rarity</th><th>Chance</th>'+PTY.map(function(ty){return'<th title="'+PNAME[ty]+'">'+PEM[ty]+'</th>'}).join('')+'</tr>';
@@ -1003,7 +1026,7 @@ for(r=0;r<4;r++)h+='<tr><td style="color:'+RCOL[r]+';font-weight:800">'+RAR[r]+'
 h+='</table><p class="note" style="margin:8px 0 16px">Each boost type is equally likely within a rarity (1 in 5).</p>';
 h+='<h3 style="margin:0 0 4px">🌟 Secret pets</h3><p class="note" style="margin:0 0 8px">Every hatch has a '+fp(ps*100)+'% chance ('+oneIn(ps*100)+') of giving a secret pet instead. Hatch one to reveal its name and bonuses.</p>';
 h+='<table class="odds"><tr><th>Pet</th><th>Chance</th><th>Bonuses</th></tr>';
-SEC.forEach(function(q,i){var kn=REVEAL||P.disc.indexOf(i)>=0,pn=ps*q.w;
+SEC.forEach(function(q,i){var kn=REVEAL||P.disc.indexOf(i)>=0,pn=secPP(t,i)*100;
 h+='<tr><td style="font-weight:800">'+(kn?'🌟 '+q.n:'❓ ???')+'</td><td>'+fp(pn)+'%<br><small>'+oneIn(pn)+'</small></td><td>'+(kn?petTxt({sec:i}):'???')+'</td></tr>'});
 h+='</table>';
 $('odds-body').innerHTML=h;$('odds-gate').classList.add('on');snd('open');
@@ -1132,7 +1155,7 @@ var q4=[
 ];
 var q5=[
 ['Pet boost','boost = baseBoost × (1 + 0.45 × petTier) × rarityMult  |  base: money 15%, customers 15%, tips 25%, messes 3%, VIP 4%  |  rarity: Common x1, Rare x2, Epic x3.5, Legendary x6  |  caps: messes 60%, VIP 50%','A Legendary tier '+(t+1)+' money pet gives +'+pctx(petVal({t:t,r:3,ty:'money'}))+'%'],
-['Rarity odds','weight = [Common 60, Rare 28 × luck, Epic 10 × luck, Legendary 2 × luck]  |  luck = 1 + 0.3 × luckLvl (per egg tier)','Tier '+(t+1)+' eggs (luck x'+nrm(lkMul(t),1)+'): '+rarProbs(t).map(function(x,i){return RAR[i]+' '+fp(x)+'%'}).join(' | ')],
+['Rarity odds','weight = [Common base, Rare base × luck, Epic base × luck, Legendary base × luck] then scaled to total 100%. Default bases: 60 / 28 / 10 / 2. The Overlord can change them per tier.  |  luck = 1 + 0.3 × luckLvl (per egg tier)','Tier '+(t+1)+' eggs (luck x'+nrm(lkMul(t),1)+'): '+rarProbs(t).map(function(x,i){return RAR[i]+' '+fp(x)+'%'}).join(' | ')],
 ['Secret pet chance','A fixed chance per egg tier that luck never changes. Higher tiers are easier.',SEC_TIER.map(function(x,i){return'T'+(i+1)+': '+oneIn(x*100)}).join(' | ')],
 ['Egg cost','cost = 400 × 12^tier',fmt(eggBase(t))+' for a tier '+(t+1)+' egg'],
 ['Hatch time','seconds = (30 + 15 × tier) / (1 + 0.3 × speedLvl)',fmtT(hatchSec(t))+' for a tier '+(t+1)+' egg'],
@@ -1233,9 +1256,55 @@ if(b.dataset.a==='export')return;
 tabKey='';roomBG.k='';drawRoom();syncCleaners();render();PK={};petsRender();
 });
 $('a-speed').oninput=function(){if(!ADM_OK)return;ASPEED=+this.value;$('a-speedv').textContent='×'+ASPEED};
+function odTier(){return+$('od-tier').value}
+function oddsAdmFill(){
+if(!$('od-tier'))return;
+var t=odTier(),w=baseW(t),sc=ODDS.s[t];
+if(document.activeElement&&/^od-/.test(document.activeElement.id)&&document.activeElement.id!=='od-tier'&&document.activeElement.id!=='od-all')return;
+if(document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.odp!=null)return;
+var sm=w[0]+w[1]+w[2]+w[3];
+['c','r','e','l'].forEach(function(k,i){$('od-'+k).value=parseFloat((w[i]/sm*100).toFixed(4))});
+$('od-sec').value=sc>=1?sc:Math.round(1/SEC_TIER[t]);
+var ph=ODDS.p[t]||{};
+$('od-pets').innerHTML=SEC.map(function(q,i){return'<div class="ar" style="align-items:center"><span style="flex:1;min-width:120px;font-weight:700">🌟 '+q.n+'</span><span style="font-weight:800">1 in</span><input type="number" min="1" step="any" data-odp="'+i+'" value="'+(ph[i]||'')+'" placeholder="'+Math.round(1/(secBase(t)*q.w/100)).toLocaleString()+'" style="width:130px"></div>'}).join('');
+oddsAdmSum();oddsAdmTable()}
+function oddsAdmSum(){
+var v=['c','r','e','l'].map(function(k){return Math.max(0,parseFloat($('od-'+k).value)||0)}),sm=v[0]+v[1]+v[2]+v[3];
+$('od-sum').textContent=sm>0?'Total entered: '+parseFloat(sm.toFixed(4))+'%'+(Math.abs(sm-100)>1e-6?' → will be scaled to 100%: '+v.map(function(x,i){return RAR[i]+' '+parseFloat((x/sm*100).toFixed(2))+'%'}).join(' · '):' ✓'):'Enter at least one number above 0.';
+var n=parseFloat($('od-sec').value);$('od-secv').textContent=n>=1?'= '+fp(100/n)+'% per hatch':''}
+function oddsAdmTable(){
+var h='<table class="odds"><tr><th>Tier</th><th>Common</th><th>Rare</th><th>Epic</th><th>Leg.</th><th>Secret</th></tr>';
+for(var t=0;t<10;t++){var w=baseW(t),sm=w[0]+w[1]+w[2]+w[3],c=ODDS.w[t]||ODDS.s[t]||ODDS.p[t];
+h+='<tr><td>T'+(t+1)+(c?' ✏️':'')+'</td>'+w.map(function(x){return'<td>'+parseFloat((x/sm*100).toFixed(2))+'%</td>'}).join('')+'<td>'+oneIn(secCh(t)*100)+'</td></tr>'}
+$('od-table').innerHTML=h+'</table>'}
+function oddsPublish(msg){
+var o={w:ODDS.w,s:ODDS.s,p:ODDS.p,t:Date.now()};
+return upCmd(['SET','tt:odds',JSON.stringify(o)]).then(function(){snd('ok');$('od-msg').textContent=msg;PK={};if(!$('pg-pets').hidden)petsRender();oddsAdmTable()}).catch(function(){$('od-msg').textContent='Could not reach the online server.'})}
+(function(){
+var sel=$('od-tier');TN.forEach(function(n,i){sel.insertAdjacentHTML('beforeend','<option value="'+i+'">Tier '+(i+1)+' - '+n+'</option>')});
+sel.onchange=function(){document.activeElement.blur();oddsAdmFill()};
+['c','r','e','l','sec'].forEach(function(k){$('od-'+k).oninput=oddsAdmSum});
+$('od-save').onclick=function(){
+if(!ADM_OK)return;
+var v=['c','r','e','l'].map(function(k){return Math.max(0,parseFloat($('od-'+k).value)||0)}),sm=v[0]+v[1]+v[2]+v[3];
+if(!(sm>0)){$('od-msg').textContent='Rarity numbers must add up to more than 0.';return}
+var n=parseFloat($('od-sec').value);
+if(!(n>=1)||n>1e9){$('od-msg').textContent='Secret chance must be 1 in 1 or higher (max 1 in 1,000,000,000).';return}
+var pm={},bad=false;document.querySelectorAll('#od-pets [data-odp]').forEach(function(el){if(el.value==='')return;var q=parseFloat(el.value);if(!(q>=1)||q>1e9)bad=true;else pm[el.dataset.odp]=q});
+if(bad){$('od-msg').textContent='Per-pet chances must be 1 in 1 or higher (max 1 in 1,000,000,000).';return}
+var w=v.map(function(x){return parseFloat((x/sm*100).toFixed(4))});
+w[3]=parseFloat((100-w[0]-w[1]-w[2]).toFixed(4));if(w[3]<0){w[3]=0;w[0]=parseFloat((100-w[1]-w[2]).toFixed(4))}
+var ts=$('od-all').checked?[0,1,2,3,4,5,6,7,8,9]:[odTier()];
+ts.forEach(function(t){ODDS.w[t]=w.slice();ODDS.s[t]=n;if(Object.keys(pm).length)ODDS.p[t]=JSON.parse(JSON.stringify(pm));else delete ODDS.p[t]});
+document.activeElement.blur();oddsAdmFill();
+oddsPublish('Saved for '+(ts.length>1?'all tiers':'tier '+(ts[0]+1))+': '+RAR.slice(0,4).map(function(x,i){return x+' '+w[i]+'%'}).join(' · ')+' | secret 1 in '+n.toLocaleString())};
+function reset(all){if(!ADM_OK)return;var ts=all?[0,1,2,3,4,5,6,7,8,9]:[odTier()];ts.forEach(function(t){delete ODDS.w[t];delete ODDS.s[t];delete ODDS.p[t]});document.activeElement.blur();oddsAdmFill();oddsPublish('Reset '+(all?'all tiers':'tier '+(ts[0]+1))+' to the default odds.')}
+$('od-reset').onclick=function(){reset(false)};$('od-resetall').onclick=function(){reset(true)};
+oddsAdmFill();
+})();
 function toggleAdmin(){if(!ADM_OK)return;var a=$('admin');a.hidden=!a.hidden;if(!a.hidden)a.scrollIntoView({behavior:'smooth',block:'nearest'})}
 $('admbtn').onclick=toggleAdmin;
-(function(){var body=$('adm-body'),fs=[].slice.call(body.querySelectorAll('fieldset')),ic=['💰','📈','👥','🐾','🏆','💾'],bar=document.createElement('div'),bs=[];
+(function(){var body=$('adm-body'),fs=[].slice.call(body.querySelectorAll('fieldset')),ic=['💰','📈','👥','🐾','🏆','🥚','💾'],bar=document.createElement('div'),bs=[];
 bar.className='tabs';bar.id='adm-tabs';
 fs.forEach(function(f,i){var b=document.createElement('button');b.className='tab'+(i?'':' on');b.textContent=(ic[i]||'')+' '+f.querySelector('legend').textContent.replace('&amp;','&');
 b.onclick=function(){fs.forEach(function(x,j){x.hidden=j!==i;bs[j].classList.toggle('on',j===i)})};bs.push(b);bar.appendChild(b);f.hidden=i>0});
@@ -1461,6 +1530,16 @@ $('vb-exit').onclick=viewEnd;
 function lbIntTxt(){var s=LBON.int;return s<120?s+' seconds':s%60===0?(s/60)+' minute'+(s===60?'':'s'):(s/60).toFixed(1)+' minutes'}
 function lbNow(){return Date.now()+(LBON.off||0)}
 function lbNext(){var ms=LBON.int*1000;return(Math.floor(lbNow()/ms)+1)*ms}
+function oddsFix(w){if(!w||w.length!==4)return null;w=w.map(function(x){x=Number(x);return isFinite(x)&&x>0?x:0});var sm=w[0]+w[1]+w[2]+w[3];return sm>0?w:null}
+function oddsCfg(){
+return upCmd(['GET','tt:odds']).then(function(v){var o=null;try{o=JSON.parse(v)}catch(x){}
+var nw={},ns={},np={};
+if(o&&o.w)Object.keys(o.w).forEach(function(k){var t=+k,w=oddsFix(o.w[k]);if(t>=0&&t<10&&w)nw[t]=w});
+if(o&&o.s)Object.keys(o.s).forEach(function(k){var t=+k,n=Number(o.s[k]);if(t>=0&&t<10&&isFinite(n)&&n>=1)ns[t]=Math.min(1e9,n)});
+if(o&&o.p)Object.keys(o.p).forEach(function(k){var t=+k;if(!(t>=0&&t<10)||!o.p[k])return;var m={};Object.keys(o.p[k]).forEach(function(j){var n=Number(o.p[k][j]);if(+j>=0&&+j<SEC.length&&isFinite(n)&&n>=1)m[j]=Math.min(1e9,n)});if(Object.keys(m).length)np[t]=m});
+var ch=JSON.stringify(nw)+JSON.stringify(ns)+JSON.stringify(np)!==JSON.stringify(ODDS.w)+JSON.stringify(ODDS.s)+JSON.stringify(ODDS.p);
+ODDS.w=nw;ODDS.s=ns;ODDS.p=np;
+if(ch){PK={};if(typeof petsRender==='function'&&!$('pg-pets').hidden)petsRender();if($('odds-gate').classList.contains('on')&&OSHOW!=null)showOdds(OSHOW);if(typeof oddsAdmFill==='function')oddsAdmFill()}}).catch(function(){})}
 function lbCfg(){
 return upCmd(['GET','tt:lbint']).then(function(v){var n=parseInt(v,10);if(isFinite(n)&&n>=30&&n<=86400)LBON.int=n;return upCmd(['TIME'])})
 .then(function(t){if(t&&t.length)LBON.off=Number(t[0])*1000+Math.floor(Number(t[1])/1000)-Date.now()}).catch(function(){})}
@@ -1479,7 +1558,7 @@ $('lb-upd').textContent=LBON.upd?'Last updated '+new Date(LBON.upd).toLocaleTime
 var ie=$('lb-int');if(ie&&document.activeElement!==ie&&+ie.value!==LBON.int/60)ie.value=LBON.int/60;
 },1000);
 $('lb-intset').onclick=function(){setLbInt(+$('lb-int').value)};
-lbCfg();setInterval(lbCfg,60000);
+lbCfg();setInterval(lbCfg,60000);oddsCfg();setInterval(oddsCfg,30000);
 var LBSORT='rank',LBORD=['asc','all','srv','cash'],LBCOLS=[['asc','🌌 Ascension'],['all','🔁 Prestiges'],['srv','👥 Customers'],['pets','🐾 Pets'],['cash','💰 Cash']];
 var LBROWS=[],LBHOLD=0;
 function lbRender(){
